@@ -12,6 +12,7 @@ type AuthContextValue = {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
+  isReady: boolean;
   logout: () => void;
   refresh: () => void;
 };
@@ -20,10 +21,12 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [isReady, setIsReady] = useState(false);
   const dispatch = useAppDispatch();
 
   useEffect(() => {
     setUser(getAuthUser());
+    setIsReady(true);
   }, []);
 
   useEffect(() => {
@@ -86,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [dispatch, user]);
 
   const token = useMemo(() => getAuthToken(), [user]);
-  const isAuthenticated = Boolean(token && user);
+  const isAuthenticated = Boolean(token && (user || !isReady));
 
   const logout = () => {
     clearAuthSession();
@@ -95,10 +98,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refresh = () => {
     setUser(getAuthUser());
+    setIsReady(true);
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, isAuthenticated, logout, refresh }}>
+    <AuthContext.Provider value={{ user, token, isAuthenticated, isReady, logout, refresh }}>
       {children}
     </AuthContext.Provider>
   );

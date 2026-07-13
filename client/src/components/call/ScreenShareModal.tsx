@@ -7,7 +7,7 @@ interface ScreenShareModalProps {
   isOpen: boolean;
   onClose: () => void;
   isSharing: boolean;
-  onStartSharing: (type: 'screen' | 'window') => void;
+  onStartSharing: () => void;
   onStopSharing: () => void;
 }
 
@@ -130,7 +130,7 @@ export function ScreenShareModal({
                       <button
                         key={screen.id}
                         onClick={() => {
-                          onStartSharing('screen');
+                          onStartSharing();
                           onClose();
                         }}
                         className="w-full p-4 rounded-lg border border-border hover:border-secondary hover:bg-secondary/5 transition-colors text-left group"
@@ -159,7 +159,7 @@ export function ScreenShareModal({
                       <button
                         key={window.id}
                         onClick={() => {
-                          onStartSharing('window');
+                          onStartSharing();
                           onClose();
                         }}
                         className="w-full p-3 rounded-lg border border-border hover:border-secondary hover:bg-secondary/5 transition-colors text-left group"

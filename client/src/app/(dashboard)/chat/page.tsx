@@ -7,15 +7,15 @@ import { useAuth } from '@/hooks/useAuth';
 
 export default function ChatPage() {
   const router = useRouter();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, isReady } = useAuth();
 
   useEffect(() => {
-    if (!isAuthenticated || !user) {
+    if (isReady && (!isAuthenticated || !user)) {
       router.replace('/login');
     }
-  }, [isAuthenticated, router, user]);
+  }, [isAuthenticated, isReady, router, user]);
 
-  if (!isAuthenticated || !user) {
+  if (!isReady || !isAuthenticated || !user) {
     return null;
   }
 

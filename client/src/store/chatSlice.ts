@@ -113,7 +113,18 @@ const chatSlice = createSlice({
     },
     appendMessage(state, action: PayloadAction<{ conversationId: string; message: ChatMessage }>) {
       const { conversationId, message } = action.payload;
-      state.messagesByConv[conversationId] = [...(state.messagesByConv[conversationId] || []), message];
+      const existingMessages = state.messagesByConv[conversationId] || [];
+      const isDuplicate = existingMessages.some((existingMessage) => {
+        const sameId = existingMessage.id && message.id && existingMessage.id === message.id;
+        const sameText = existingMessage.text === message.text && existingMessage.time === message.time;
+        return sameId || sameText;
+      });
+
+      if (isDuplicate) {
+        return;
+      }
+
+      state.messagesByConv[conversationId] = [...existingMessages, message];
       const conversation = state.conversations.find((c) => c.id === conversationId);
       if (conversation) {
         conversation.lastMessage = message.text;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   Mic,
   MicOff,
@@ -19,12 +19,17 @@ import { ChatPanel } from './ChatPanel';
 import { BackgroundSettings } from './BackgroundSettings';
 import { ScreenShareModal } from './ScreenShareModal';
 import { RecordingIndicator } from './RecordingIndicator';
+import { useScreenShare } from '@/hooks/useScreenShare';
+import socket from '@/lib/socket';
 
 interface OneToOneCallProps {
   remoteUserName?: string;
   callDuration?: string;
   localVideoRef?: React.RefObject<HTMLVideoElement>;
   remoteVideoRef?: React.RefObject<HTMLVideoElement>;
+  screenShareRef?: React.RefObject<HTMLVideoElement>;
+  remoteScreenShareRef?: React.RefObject<HTMLVideoElement>;
+  peerConnection?: RTCPeerConnection | null;
   connectionStatus?: string;
   connectionState?: string;
   statusMessage?: string;
@@ -53,6 +58,9 @@ export function OneToOneCall({
   callDuration = '02:45',
   localVideoRef,
   remoteVideoRef,
+  screenShareRef,
+  remoteScreenShareRef,
+  peerConnection,
   connectionStatus = 'Ready',
   connectionState = 'idle',
   statusMessage = 'Ready to connect',
@@ -69,9 +77,13 @@ export function OneToOneCall({
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isBackgroundOpen, setIsBackgroundOpen] = useState(false);
-  const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isScreenShareModalOpen, setIsScreenShareModalOpen] = useState(false);
+  const [screenShareStream, setScreenShareStream] = useState<MediaStream | null>(null);
+  const [remoteScreenStream, setRemoteScreenStream] = useState<MediaStream | null>(null);
+  const { isSharing, startScreenShare, stopScreenShare, error: screenShareError } = useScreenShare({
+    onScreenShare: (stream) => setScreenShareStream(stream),
+  });
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
@@ -101,6 +113,73 @@ export function OneToOneCall({
     };
     setMessages((current) => [...current, newMessage]);
   };
+
+  const handleStartScreenShare = async () => {
+    try {
+      const stream = await startScreenShare();
+      if (stream && peerConnection) {
+        // Add screen track to peer connection
+        stream.getTracks().forEach((track) => {
+          peerConnection.addTrack(track, stream);
+        });
+        socket.emit('screen:start', { userId: 'current-user-id', isSharing: true });
+        setIsScreenShareModalOpen(false);
+      }
+    } catch (err) {
+      console.error('Failed to start screen sharing:', err);
+    }
+  };
+
+  const handleStopScreenShare = async () => {
+    if (screenShareStream && peerConnection) {
+      // Remove screen tracks from peer connection
+      screenShareStream.getTracks().forEach((track) => {
+        const sender = peerConnection.getSenders().find((s) => s.track === track);
+        if (sender) {
+          peerConnection.removeTrack(sender);
+        }
+      });
+    }
+    stopScreenShare();
+    socket.emit('screen:stop', { userId: 'current-user-id', isSharing: false });
+  };
+
+  useEffect(() => {
+    const handleRemoteScreenShare = (data: { userId: string; isSharing: boolean }) => {
+      if (!data.isSharing) {
+        setRemoteScreenStream(null);
+      }
+    };
+
+    socket.on('screen:start', handleRemoteScreenShare);
+    socket.on('screen:stop', handleRemoteScreenShare);
+
+    return () => {
+      socket.off('screen:start', handleRemoteScreenShare);
+      socket.off('screen:stop', handleRemoteScreenShare);
+    };
+  }, []);
+
+  // Handle remote screen tracks from peer connection
+  useEffect(() => {
+    if (!peerConnection) return;
+
+    const handleTrack = (event: RTCTrackEvent) => {
+      console.log('Received track:', event.track.kind, event.track.label);
+      if (event.track.kind === 'video' && event.track.label.includes('screen')) {
+        const stream = new MediaStream([event.track]);
+        setRemoteScreenStream(stream);
+        if (remoteScreenShareRef?.current) {
+          remoteScreenShareRef.current.srcObject = stream;
+        }
+      }
+    };
+
+    peerConnection.addEventListener('track', handleTrack);
+    return () => {
+      peerConnection.removeEventListener('track', handleTrack);
+    };
+  }, [peerConnection, remoteScreenShareRef]);
 
   return (
     <div className="relative flex h-screen w-full flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800">
@@ -144,6 +223,21 @@ export function OneToOneCall({
           {/* Gradient Overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
 
+          {/* Remote Screen Share Display */}
+          {remoteScreenStream && remoteScreenShareRef && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/80">
+              <video
+                ref={remoteScreenShareRef}
+                autoPlay
+                playsInline
+                className="h-full w-full object-contain"
+              />
+              <div className="absolute top-4 left-4 bg-blue-600/90 px-3 py-1 rounded-full text-sm text-white font-medium">
+                Screen Share from {remoteUserName}
+              </div>
+            </div>
+          )}
+
           {/* User Info */}
           <div className="absolute left-0 right-0 top-8 z-10 flex flex-col items-center gap-2 text-white">
             <h2 className="text-balance text-3xl font-bold md:text-4xl">{remoteUserName}</h2>
@@ -181,11 +275,11 @@ export function OneToOneCall({
             {/* Screen Share Button */}
             <button
               onClick={() => setIsScreenShareModalOpen(true)}
-              className={`rounded-full p-3 md:p-4 transition-all duration-200 ${isScreenSharing
+              className={`rounded-full p-3 md:p-4 transition-all duration-200 ${isSharing
                 ? 'bg-secondary hover:bg-secondary/90 shadow-lg shadow-secondary/50'
                 : 'bg-white/20 hover:bg-white/30 backdrop-blur-md'
                 } text-white`}
-              title={isScreenSharing ? 'Stop sharing' : 'Share screen'}
+              title={isSharing ? 'Stop sharing' : 'Share screen'}
             >
               <Share2 className="w-6 h-6" />
             </button>
@@ -299,10 +393,15 @@ export function OneToOneCall({
       <ScreenShareModal
         isOpen={isScreenShareModalOpen}
         onClose={() => setIsScreenShareModalOpen(false)}
-        isSharing={isScreenSharing}
-        onStartSharing={() => setIsScreenSharing(true)}
-        onStopSharing={() => setIsScreenSharing(false)}
+        isSharing={isSharing}
+        onStartSharing={handleStartScreenShare}
+        onStopSharing={handleStopScreenShare}
       />
+      {screenShareError && (
+        <div className="fixed bottom-4 left-4 bg-red-500 text-white px-4 py-2 rounded-lg z-50">
+          Screen sharing error: {screenShareError}
+        </div>
+      )}
     </div>
   );
 }

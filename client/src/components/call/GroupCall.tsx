@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   Mic,
   MicOff,
@@ -23,6 +23,8 @@ import { BackgroundSettings } from './BackgroundSettings';
 import { ScreenShareModal } from './ScreenShareModal';
 import { HandRaiseIndicator } from './HandRaiseIndicator';
 import { RecordingIndicator } from './RecordingIndicator';
+import { useScreenShare } from '@/hooks/useScreenShare';
+import socket from '@/lib/socket';
 
 interface GroupMember {
   id: string;
@@ -38,6 +40,8 @@ interface GroupCallProps {
   callDuration?: string;
   localVideoRef?: React.RefObject<HTMLVideoElement>;
   remoteVideoRef?: React.RefObject<HTMLVideoElement>;
+  remoteScreenShareRef?: React.RefObject<HTMLVideoElement>;
+  peerConnection?: RTCPeerConnection | null;
   connectionStatus?: string;
   connectionState?: string;
   statusMessage?: string;
@@ -102,6 +106,8 @@ export function GroupCall({
   callDuration = '12:34',
   localVideoRef,
   remoteVideoRef,
+  remoteScreenShareRef,
+  peerConnection,
   connectionStatus = 'Ready',
   connectionState = 'idle',
   statusMessage = 'Ready to connect',
@@ -119,12 +125,16 @@ export function GroupCall({
   const [isGridView, setIsGridView] = useState(true);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isBackgroundOpen, setIsBackgroundOpen] = useState(false);
-  const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isScreenShareModalOpen, setIsScreenShareModalOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
+  const [screenShareStream, setScreenShareStream] = useState<MediaStream | null>(null);
+  const [remoteScreenStream, setRemoteScreenStream] = useState<MediaStream | null>(null);
   const [handsRaised, setHandsRaised] = useState<HandRaiseNotification[]>([]);
   const [isRaisingHand, setIsRaisingHand] = useState(false);
+  const { isSharing, startScreenShare, stopScreenShare, error: screenShareError } = useScreenShare({
+    onScreenShare: (stream) => setScreenShareStream(stream),
+  });
   const statusTone = useMemo(() => {
     if (permissionError) return 'text-red-300';
     if (connectionState === 'connected') return 'text-emerald-300';
@@ -155,6 +165,73 @@ export function GroupCall({
     setMessages([...messages, newMessage]);
   };
 
+  const handleStartScreenShare = async () => {
+    try {
+      const stream = await startScreenShare();
+      if (stream && peerConnection) {
+        // Add screen track to peer connection
+        stream.getTracks().forEach((track) => {
+          peerConnection.addTrack(track, stream);
+        });
+        socket.emit('screen:start', { userId: 'current-user-id', isSharing: true });
+        setIsScreenShareModalOpen(false);
+      }
+    } catch (err) {
+      console.error('Failed to start screen sharing:', err);
+    }
+  };
+
+  const handleStopScreenShare = async () => {
+    if (screenShareStream && peerConnection) {
+      // Remove screen tracks from peer connection
+      screenShareStream.getTracks().forEach((track) => {
+        const sender = peerConnection.getSenders().find((s) => s.track === track);
+        if (sender) {
+          peerConnection.removeTrack(sender);
+        }
+      });
+    }
+    stopScreenShare();
+    socket.emit('screen:stop', { userId: 'current-user-id', isSharing: false });
+  };
+
+  useEffect(() => {
+    const handleRemoteScreenShare = (data: { userId: string; isSharing: boolean }) => {
+      if (!data.isSharing) {
+        setRemoteScreenStream(null);
+      }
+    };
+
+    socket.on('screen:start', handleRemoteScreenShare);
+    socket.on('screen:stop', handleRemoteScreenShare);
+
+    return () => {
+      socket.off('screen:start', handleRemoteScreenShare);
+      socket.off('screen:stop', handleRemoteScreenShare);
+    };
+  }, []);
+
+  // Handle remote screen tracks from peer connection
+  useEffect(() => {
+    if (!peerConnection) return;
+
+    const handleTrack = (event: RTCTrackEvent) => {
+      console.log('Received track:', event.track.kind, event.track.label);
+      if (event.track.kind === 'video' && event.track.label.includes('screen')) {
+        const stream = new MediaStream([event.track]);
+        setRemoteScreenStream(stream);
+        if (remoteScreenShareRef?.current) {
+          remoteScreenShareRef.current.srcObject = stream;
+        }
+      }
+    };
+
+    peerConnection.addEventListener('track', handleTrack);
+    return () => {
+      peerConnection.removeEventListener('track', handleTrack);
+    };
+  }, [peerConnection, remoteScreenShareRef]);
+
   const handleToggleHandRaise = () => {
     if (isRaisingHand) {
       setIsRaisingHand(false);
@@ -172,6 +249,27 @@ export function GroupCall({
 
   return (
     <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex flex-col">
+      {/* Remote Screen Share Overlay */}
+      {remoteScreenStream && remoteScreenShareRef && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/95">
+          <video
+            ref={remoteScreenShareRef}
+            autoPlay
+            playsInline
+            className="h-full w-full object-contain"
+          />
+          <div className="absolute top-8 left-8 bg-blue-600/90 px-4 py-2 rounded-full text-sm text-white font-medium">
+            Screen Share from {members[0]?.name || 'Participant'}
+          </div>
+          <button
+            onClick={() => setRemoteScreenStream(null)}
+            className="absolute top-8 right-8 bg-slate-700/90 hover:bg-slate-600 px-4 py-2 rounded-full text-sm text-white font-medium transition-colors"
+          >
+            Exit Screen Share
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-gradient-to-r from-primary to-secondary/80 text-white px-4 md:px-6 py-4 md:py-5 shadow-lg">
         <div className="flex items-center justify-between max-w-7xl mx-auto flex-wrap gap-4">
@@ -399,11 +497,11 @@ export function GroupCall({
           {/* Screen Share Button */}
           <button
             onClick={() => setIsScreenShareModalOpen(true)}
-            className={`rounded-full p-4 md:p-5 transition-all duration-200 transform hover:scale-110 ${isScreenSharing
+            className={`rounded-full p-4 md:p-5 transition-all duration-200 transform hover:scale-110 ${isSharing
               ? 'bg-secondary hover:bg-secondary/90 shadow-lg shadow-secondary/50'
               : 'bg-white/20 hover:bg-white/30 backdrop-blur-md'
               } text-white`}
-            title={isScreenSharing ? 'Stop sharing' : 'Share screen'}
+            title={isSharing ? 'Stop sharing' : 'Share screen'}
           >
             <Share2 className="w-6 h-6 md:w-7 md:h-7" />
           </button>
@@ -472,10 +570,15 @@ export function GroupCall({
       <ScreenShareModal
         isOpen={isScreenShareModalOpen}
         onClose={() => setIsScreenShareModalOpen(false)}
-        isSharing={isScreenSharing}
-        onStartSharing={() => setIsScreenSharing(true)}
-        onStopSharing={() => setIsScreenSharing(false)}
+        isSharing={isSharing}
+        onStartSharing={handleStartScreenShare}
+        onStopSharing={handleStopScreenShare}
       />
+      {screenShareError && (
+        <div className="fixed bottom-4 left-4 bg-red-500 text-white px-4 py-2 rounded-lg z-50">
+          Screen sharing error: {screenShareError}
+        </div>
+      )}
 
       {/* Hand Raise Indicator */}
       <HandRaiseIndicator
