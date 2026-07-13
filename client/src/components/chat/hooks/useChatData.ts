@@ -157,7 +157,7 @@ export function useChatData(initialUser: User | null) {
       return;
     }
 
-    if (activeId !== conversationId) {
+    if (conversationId && activeId !== conversationId) {
       dispatch(setActiveConversation(conversationId));
       setIsConversationClosed(false);
     }

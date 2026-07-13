@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppDispatch } from '@/hooks/useAppDispatch';
@@ -8,13 +9,15 @@ import { useAppSelector } from '@/hooks/useAppSelector';
 import socket from '@/lib/socket';
 import { requestNotificationPermission } from '@/lib/pwa';
 import { uploadFile } from '@/services/uploadService';
-import { sendChatMessage } from '@/services/chatService';
+import { fetchConversationByUser, sendChatMessage } from '@/services/chatService';
+import { getCurrentUser } from '@/services/userService';
 import { useChatData } from '@/components/chat/hooks/useChatData';
 import { useChatSocket } from '@/components/chat/hooks/useChatSocket';
 import { useChatRoom } from '@/components/chat/hooks/useChatRoom';
 import ChatLayout from '@/components/chat/components/ChatLayout';
 import { addReactionToMessage, appendMessage } from '@/store/chatSlice';
 import type { ChatMessage, MessageAttachment } from '@/store/chatSlice';
+import type { User } from '@/types';
 
 /**
  * ChatUI orchestrates the chat page and delegates the rendering to ChatLayout.
@@ -37,6 +40,13 @@ export default function ChatUI() {
   const { user } = useAuth();
   const { theme, setTheme } = useTheme();
   const dispatch = useAppDispatch();
+
+  const currentUserQuery = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: getCurrentUser,
+    enabled: Boolean(user?.id),
+    staleTime: 1000 * 60 * 5,
+  });
 
   // Chat query and conversation loading logic from Redux-enabled hooks.
   const {
@@ -96,26 +106,73 @@ export default function ChatUI() {
     setMounted(true);
   }, []);
 
+  const getAttachmentType = (file: File): MessageAttachment['type'] => {
+    if (file.type.startsWith('image/')) return 'image';
+    if (file.type.startsWith('video/')) return 'video';
+    if (file.type.startsWith('audio/')) return 'voice';
+    return 'file';
+  };
+
   /**
    * Upload a file and add it to the current message attachments list.
    */
-  const handleAttachFile = async (file: File, type: MessageAttachment['type'] = 'file') => {
+  const revokePreviewUrl = (url?: string) => {
+    if (url?.startsWith('blob:')) {
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  const handleAttachFile = async (file: File) => {
+    const type = getAttachmentType(file);
+    const attachmentId = `${Date.now()}-${file.name}`;
+    const previewUrl = URL.createObjectURL(file);
+    const placeholder: MessageAttachment = {
+      id: attachmentId,
+      type,
+      url: previewUrl,
+      name: file.name,
+      mimeType: file.type,
+      size: file.size,
+      progress: 0,
+      isUploading: true,
+    };
+
+    setAttachments((current) => [...current, placeholder]);
+
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const uploaded = await uploadFile(formData);
-      setAttachments((current) => [
-        ...current,
-        {
-          type,
-          url: uploaded.url,
-          name: file.name,
-          mimeType: file.type,
-          size: file.size,
-        },
-      ]);
+      const uploaded = await uploadFile(formData, (progress) => {
+        setAttachments((current) =>
+          current.map((attachment) =>
+            attachment.id === attachmentId
+              ? { ...attachment, progress, isUploading: true }
+              : attachment
+          )
+        );
+      });
+
+      setAttachments((current) =>
+        current.map((attachment) => {
+          if (attachment.id !== attachmentId) return attachment;
+          revokePreviewUrl(attachment.url);
+          return {
+            ...attachment,
+            url: uploaded.url,
+            progress: 100,
+            isUploading: false,
+          };
+        })
+      );
     } catch (error) {
       console.error('File upload failed', error);
+      setAttachments((current) => {
+        const failed = current.find((attachment) => attachment.id === attachmentId);
+        if (failed) {
+          revokePreviewUrl(failed.url);
+        }
+        return current.filter((attachment) => attachment.id !== attachmentId);
+      });
     }
   };
 
@@ -144,7 +201,7 @@ export default function ChatUI() {
       recorder.onstop = async () => {
         const blob = new Blob(chunks, { type: 'audio/webm' });
         const file = new File([blob], `voice-${Date.now()}.webm`, { type: 'audio/webm' });
-        await handleAttachFile(file, 'voice');
+        await handleAttachFile(file);
         stream.getTracks().forEach((track) => track.stop());
       };
 
@@ -167,7 +224,13 @@ export default function ChatUI() {
    * Remove a previously attached file from the composer.
    */
   const handleRemoveAttachment = (index: number) => {
-    setAttachments((current) => current.filter((_, idx) => idx !== index));
+    setAttachments((current) => {
+      const removed = current[index];
+      if (removed) {
+        revokePreviewUrl(removed.url);
+      }
+      return current.filter((_, idx) => idx !== index);
+    });
   };
 
   /**
@@ -183,6 +246,41 @@ export default function ChatUI() {
   const handleReact = (messageId: number | string, emoji: string) => {
     if (!activeId) return;
     dispatch(addReactionToMessage({ conversationId: activeId, messageId, emoji }));
+  };
+
+  const handleStartChatWithFriend = async (friendId: string) => {
+    const existingConversation = conversations.find(
+      (conversation) => conversation.participants?.includes(friendId)
+    );
+    if (existingConversation) {
+      handleSelectConversation(existingConversation.id);
+      return;
+    }
+
+    try {
+      const conversation = await fetchConversationByUser(friendId);
+      handleCreateConversation(conversation);
+    } catch (error) {
+      console.error('Unable to start chat with friend', error);
+    }
+  };
+
+  const handleFriendAdded = async (friend: User, conversationId?: string) => {
+    if (currentUserQuery.refetch) {
+      await currentUserQuery.refetch();
+    }
+
+    if (conversationId) {
+      handleCreateConversation({
+        id: conversationId,
+        name: friend.name,
+        participants: [user?.id ?? '', friend.id],
+        lastMessage: '',
+        time: '',
+        unread: 0,
+        online: false,
+      });
+    }
   };
 
   /**
@@ -215,8 +313,10 @@ export default function ChatUI() {
   const sendMessage = async () => {
     if (!activeId) return;
     const text = draft.trim();
-    if (!text) return;
+    if (!text && attachments.length === 0) return;
+    if (attachments.some((attachment) => attachment.isUploading)) return;
 
+    const preparedAttachments = attachments.map(({ progress, isUploading, id, ...rest }) => rest);
     const now = new Date();
     const localId = `local-${Date.now()}`;
     const optimisticMessage: ChatMessage & { conversationId: string; senderId: string; attachments?: MessageAttachment[] } = {
@@ -229,7 +329,7 @@ export default function ChatUI() {
       day: 'Today',
       status: 'sent',
       replyTo: replyTo ?? undefined,
-      attachments: attachments.length ? attachments : undefined,
+      attachments: preparedAttachments.length ? attachments : undefined,
     };
 
     dispatch(
@@ -241,7 +341,7 @@ export default function ChatUI() {
 
     setDraftValue('');
     setReplyTo(null);
-    socket.emit('chat:message', optimisticMessage);
+    socket.emit('chat:message', { ...optimisticMessage, attachments: preparedAttachments });
     socket.emit('chat:typing', { conversationId: activeId, isTyping: false });
 
     try {
@@ -249,13 +349,12 @@ export default function ChatUI() {
         conversationId: activeId,
         senderId: user?.id ?? '',
         text,
-        attachments: attachments.length ? attachments : undefined,
+        attachments: preparedAttachments.length ? preparedAttachments : undefined,
       });
       setAttachments([]);
     } catch (error) {
       console.error('Failed to save message', error);
     }
-
   };
 
   /**
@@ -312,6 +411,9 @@ export default function ChatUI() {
         onQueryChange={setQuery}
         onSelectConversation={handleSelectConversation}
         onCreateConversation={handleCreateConversation}
+        onStartChatWithFriend={handleStartChatWithFriend}
+        onFriendAdded={handleFriendAdded}
+        friends={currentUserQuery.data?.friends ?? []}
         onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
       />
     </div>

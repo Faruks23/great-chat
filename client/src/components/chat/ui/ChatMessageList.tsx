@@ -95,11 +95,28 @@ export default function ChatMessageList({
                     ) : null}
                     <p className="whitespace-pre-wrap break-words md:leading-6">{message.text}</p>
                     {message.attachments?.length ? (
-                      <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                      <div className="mt-2 grid gap-3">
                         {message.attachments.map((attachment) => (
-                          <span key={`${message.id}-${attachment.type}`} className={`rounded-full px-2 py-1 ${isMine ? 'bg-white/20' : 'bg-white dark:bg-zinc-900'}`}>
-                            {attachment.type === 'voice' ? '🎤 Voice' : attachment.name ?? attachment.type}
-                          </span>
+                          <div key={`${message.id}-${attachment.type}-${attachment.url}`} className="overflow-hidden rounded-2xl border border-zinc-200 bg-white text-zinc-900 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100">
+                            {attachment.type === 'image' && attachment.url ? (
+                              <img src={attachment.url} alt={attachment.name} className="h-52 w-full object-cover" />
+                            ) : attachment.type === 'video' && attachment.url ? (
+                              <video controls src={attachment.url} className="h-52 w-full bg-black object-cover" />
+                            ) : attachment.type === 'voice' && attachment.url ? (
+                              <div className="p-3">
+                                <div className="mb-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">Voice message</div>
+                                <audio controls src={attachment.url} className="w-full" />
+                              </div>
+                            ) : (
+                              <a href={attachment.url} target="_blank" rel="noreferrer" className="flex items-center justify-between gap-3 p-3 text-left text-xs text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-zinc-800">
+                                <span className="truncate">{attachment.name ?? 'Download file'}</span>
+                                <span className="text-[10px] text-zinc-500 dark:text-zinc-400">Download</span>
+                              </a>
+                            )}
+                            {attachment.type !== 'image' && attachment.type !== 'video' && attachment.type !== 'voice' ? null : attachment.name ? (
+                              <div className="px-3 py-2 text-[11px] text-zinc-500 dark:text-zinc-400">{attachment.name}</div>
+                            ) : null}
+                          </div>
                         ))}
                       </div>
                     ) : null}

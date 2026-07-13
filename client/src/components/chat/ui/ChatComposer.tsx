@@ -60,6 +60,52 @@ export default function ChatComposer({
         </div>
       ) : null}
 
+      {attachments.length ? (
+        <div className="mb-3 space-y-2">
+          {attachments.map((attachment, index) => {
+            const progress = attachment.progress ?? 0;
+            const isUploading = attachment.isUploading;
+            const label = attachment.name ?? (attachment.type === 'image' ? 'Image' : attachment.type === 'video' ? 'Video' : 'Attachment');
+
+            return (
+              <div key={attachment.id ?? `${label}-${index}`} className="flex flex-col rounded-2xl border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="min-w-0 truncate font-medium">{label}</div>
+                      {isUploading ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">Uploading</span> : null}
+                    </div>
+                    {attachment.type === 'image' && attachment.url ? (
+                      <img src={attachment.url} alt={attachment.name} className="h-24 w-full rounded-2xl object-cover" />
+                    ) : attachment.type === 'video' && attachment.url ? (
+                      <video controls src={attachment.url} className="h-24 w-full rounded-2xl bg-zinc-950 object-cover" />
+                    ) : attachment.type === 'voice' && attachment.url ? (
+                      <audio controls src={attachment.url} className="w-full" />
+                    ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    className="rounded-full p-1 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                    onClick={() => onRemoveAttachment(index)}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+                  <span>{attachment.mimeType || 'Unknown file type'}</span>
+                  {attachment.size ? <span>{Math.round(attachment.size / 1024)} KB</span> : null}
+                </div>
+                {isUploading ? (
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+                    <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${progress}%` }} />
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+
       <div className="flex gap-5 md:gap-3 flex-row !justify-between items-center">
         <div className="flex items-center gap-2">
           {/** File attachment button, hidden file input triggers the browser dialog. */}
@@ -67,10 +113,11 @@ export default function ChatComposer({
             ref={fileInputRef}
             type="file"
             className="hidden"
+            multiple
             onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) {
-                void onAttachFile(file);
+              const files = event.target.files;
+              if (files) {
+                Array.from(files).forEach((file) => void onAttachFile(file));
               }
               if (fileInputRef.current) {
                 fileInputRef.current.value = '';
@@ -135,7 +182,7 @@ export default function ChatComposer({
             <Button
               type="button"
               onClick={onSend}
-              disabled={!draft.trim()}
+              disabled={(!draft.trim() && attachments.length === 0) || attachments.some((attachment) => attachment.isUploading)}
               className="inline-flex h-10 w-10 min-w-[2.5rem] items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-zinc-600"
               aria-label="Send message"
             >

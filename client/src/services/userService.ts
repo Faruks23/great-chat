@@ -3,7 +3,9 @@ import type { User } from '@/types';
 
 export interface UserProfile extends User {
   avatar?: string;
+  phone?: string;
   friends?: User[];
+  conversationId?: string;
 }
 
 /**
@@ -19,6 +21,16 @@ export async function getCurrentUser(): Promise<UserProfile> {
  */
 export async function getAllUsers(): Promise<User[]> {
   const response = await api.get<User[]>('/users');
+  return response.data;
+}
+
+/**
+ * Search for a user by email or phone.
+ */
+export async function searchUser(query: string): Promise<User> {
+  const response = await api.get<User>('/users/search', {
+    params: { q: query },
+  });
   return response.data;
 }
 

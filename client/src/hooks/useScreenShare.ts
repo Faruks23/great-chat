@@ -17,8 +17,8 @@ export function useScreenShare({ onScreenShare }: UseScreenShareProps = {}) {
 
       const displayStream = await navigator.mediaDevices.getDisplayMedia({
         video: {
-          cursor: 'always' as const,
-        },
+          cursor: 'always',
+        } as unknown as MediaTrackConstraints,
         audio: false,
       });
 

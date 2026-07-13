@@ -3,4 +3,5 @@ export interface UserData {
   email: string;
   avatar?: string;
   friends?: string[];
+  lastSeen?: Date;
 }

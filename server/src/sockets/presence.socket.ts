@@ -1,5 +1,6 @@
 import { Server } from 'socket.io';
 import { getPendingNotifications } from './notificationStore';
+import UserModel from '../modules/user/user.model';
 
 const onlineCounts = new Map<string, number>();
 
@@ -47,6 +48,12 @@ export default function presenceSocket(io: Server) {
         } else {
           onlineCounts.delete(user.id);
           socket.broadcast.emit('presence:update', { id: user.id, online: false });
+          // persist lastSeen for the user when they go fully offline
+          try {
+            UserModel.findByIdAndUpdate(user.id, { lastSeen: new Date() }).catch(() => {});
+          } catch (e) {
+            // ignore
+          }
         }
         console.log(`presence:update offline for user=${user.id} socket=${socket.id} newCount=${count}`);
       }
@@ -61,6 +68,12 @@ export default function presenceSocket(io: Server) {
       } else {
         onlineCounts.delete(userId);
         socket.broadcast.emit('presence:update', { id: userId, online: false });
+        // persist lastSeen when socket fully disconnects
+        try {
+          UserModel.findByIdAndUpdate(userId, { lastSeen: new Date() }).catch(() => {});
+        } catch (e) {
+          // ignore
+        }
       }
       console.log(`socket disconnected ${socket.id} for user=${userId} newCount=${count}`);
     });

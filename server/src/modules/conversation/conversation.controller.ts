@@ -14,11 +14,12 @@ export async function getConversations(req: Request, res: Response, next: NextFu
     const mapped = await Promise.all(
       conversations.map(async (conversation) => {
         let name = conversation.name;
+        let otherUser: any = undefined;
 
         if (conversation.participants.length === 2) {
           const otherParticipant = conversation.participants.find((participant: string) => participant !== userId);
           if (otherParticipant) {
-            const otherUser = await UserService.getById(otherParticipant);
+            otherUser = await UserService.getById(otherParticipant);
             if (otherUser?.name) {
               name = otherUser.name;
             }
@@ -33,6 +34,7 @@ export async function getConversations(req: Request, res: Response, next: NextFu
           time: new Date(conversation.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           unread: 0,
           online: false,
+          lastSeen: otherUser?.lastSeen ? new Date(otherUser.lastSeen).toISOString() : undefined,
         };
       })
     );
@@ -68,10 +70,11 @@ export async function getConversationById(req: Request, res: Response, next: Nex
     }
 
     let name = conversation.name;
+    let otherUser: any = undefined;
     if (conversation.participants.length === 2) {
       const otherParticipant = conversation.participants.find((participant: string) => participant !== userId);
       if (otherParticipant) {
-        const otherUser = await UserService.getById(otherParticipant);
+        otherUser = await UserService.getById(otherParticipant);
         if (otherUser?.name) {
           name = otherUser.name;
         }
@@ -86,6 +89,7 @@ export async function getConversationById(req: Request, res: Response, next: Nex
       time: new Date(conversation.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       unread: 0,
       online: false,
+      lastSeen: otherUser?.lastSeen ? new Date(otherUser.lastSeen).toISOString() : undefined,
     });
   } catch (error) {
     next(error);
@@ -111,11 +115,11 @@ export async function getConversationWithUser(req: Request, res: Response, next:
 
     const conversation = await ConversationService.create('New Chat', [userId, participantId]);
     let name = conversation.name;
-
+    let otherUser: any = undefined;
     if (conversation.participants.length === 2) {
       const otherParticipant = conversation.participants.find((participant: string) => participant !== userId);
       if (otherParticipant) {
-        const otherUser = await UserService.getById(otherParticipant);
+        otherUser = await UserService.getById(otherParticipant);
         if (otherUser?.name) {
           name = otherUser.name;
         }
@@ -130,6 +134,7 @@ export async function getConversationWithUser(req: Request, res: Response, next:
       time: new Date(conversation.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       unread: 0,
       online: false,
+      lastSeen: otherUser?.lastSeen ? new Date(otherUser.lastSeen).toISOString() : undefined,
     });
   } catch (error) {
     next(error);

@@ -26,11 +26,48 @@ export class UserService {
     return users.map(normalizeUser);
   }
 
-  static async addFriend(userId: string, friendId: string) {
-    await UserModel.findByIdAndUpdate(userId, { $addToSet: { friends: friendId } });
-    await UserModel.findByIdAndUpdate(friendId, { $addToSet: { friends: userId } });
-    const user = await UserModel.findById(userId).lean();
+    static async findByEmailOrPhone(query: string) {
+    const normalizedQuery = query.trim().toLowerCase();
+    const digitsOnly = query.replace(/\D/g, '');
+
+    const conditions: any[] = [];
+    if (normalizedQuery.includes('@')) {
+      conditions.push({ email: normalizedQuery });
+    }
+    if (digitsOnly.length > 0) {
+      conditions.push({ phone: digitsOnly });
+      conditions.push({ phone: { $regex: digitsOnly, $options: 'i' } });
+    }
+    if (conditions.length === 0) {
+      conditions.push({ email: normalizedQuery }, { phone: normalizedQuery });
+    }
+
+    const user = await UserModel.findOne({ $or: conditions }).lean();
     return normalizeUser(user);
+  }
+
+
+  static async addFriend(userId: string, friendId: string) {
+    const user = await UserModel.findById(userId);
+    const friend = await UserModel.findById(friendId);
+    if (!user || !friend) {
+      return null;
+    }
+
+    const userFriends = user.friends || [];
+    const friendFriends = friend.friends || [];
+
+    if (!userFriends.includes(friendId)) {
+      user.friends = [...userFriends, friendId];
+    }
+    if (!friendFriends.includes(userId)) {
+      friend.friends = [...friendFriends, userId];
+    }
+
+    await user.save();
+    await friend.save();
+
+    return normalizeUser(user.toObject());
   }
 
   static async create(data: UserData) {

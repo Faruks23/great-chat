@@ -8,6 +8,8 @@ import { useAuth } from '@/hooks/useAuth';
 import ChatAvatar from './ChatAvatar';
 import AddUserChatModal from './AddUserChatModal';
 import type { Conversation } from '@/store/chatSlice';
+import type { User } from '@/types';
+import { timeAgoShort, timeAgoLong } from '@/lib/time';
 
 const workspaceLinks = [
   { href: '/chat', label: 'Chat' },
@@ -28,6 +30,8 @@ type ChatSidebarProps = {
   onQueryChange: (value: string) => void;
   onSelectConversation: (id: string) => void;
   onCreateConversation: (conversation: Conversation) => void;
+  onStartChatWithFriend?: (friendId: string) => void;
+  friends?: User[];
   onToggleTheme: () => void;
 };
 
@@ -46,11 +50,14 @@ export function ChatSidebar({
   onQueryChange,
   onSelectConversation,
   onCreateConversation,
+  onStartChatWithFriend,
+  friends = [],
   onToggleTheme,
 }: ChatSidebarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [showNewChat, setShowNewChat] = useState(false);
   const { user, logout } = useAuth();
+
 
   return (
     <>
@@ -59,7 +66,19 @@ export function ChatSidebar({
         open={showNewChat}
         currentUserId={user?.id ?? null}
         onClose={() => setShowNewChat(false)}
-        onChatCreated={onCreateConversation}
+        onFriendAdded={(friend, conversationId) => {
+          if (conversationId) {
+            onCreateConversation({
+              id: conversationId,
+              name: friend.name,
+              participants: [user?.id ?? '', friend.id],
+              lastMessage: '',
+              time: '',
+              unread: 0,
+              online: false,
+            });
+          }
+        }}
       />
 
       {sidebarOpen ? (
@@ -151,36 +170,88 @@ export function ChatSidebar({
               No chats match your search.
             </div>
           ) : (
-            filteredConversations.map((conversation) => (
-              <button
-                key={conversation.id}
-                type="button"
-                onClick={() => {
-                  onSelectConversation(conversation.id);
-                  onClose();
-                }}
-                className={`group mb-2 flex w-full items-center gap-3 rounded-3xl border border-transparent bg-white px-4 py-3 text-left transition duration-150 hover:border-zinc-200 hover:bg-zinc-50 dark:bg-zinc-950 dark:hover:border-zinc-700 dark:hover:bg-zinc-900 ${conversation.id === activeId ? 'border-emerald-500/30 bg-emerald-50 shadow-sm dark:bg-emerald-500/10' : ''}`}
-              >
-                <ChatAvatar name={conversation.name} online={conversation.online} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">{conversation.name}</p>
-                    <span className="text-[11px] text-zinc-400">{conversation.time}</span>
+            filteredConversations.map((conversation) => {
+              const lastSeen = (conversation as any).lastSeen as string | undefined | null;
+              const convoTimeAgo = lastSeen ? timeAgoShort(lastSeen) : '';
+              return (
+                <button
+                  key={conversation.id}
+                  type="button"
+                  onClick={() => {
+                    onSelectConversation(conversation.id);
+                    onClose();
+                  }}
+                  className={`group mb-2 flex w-full items-center gap-3 rounded-3xl border border-transparent bg-white px-4 py-3 text-left transition duration-150 hover:border-zinc-200 hover:bg-zinc-50 dark:bg-zinc-950 dark:hover:border-zinc-700 dark:hover:bg-zinc-900 ${conversation.id === activeId ? 'border-emerald-500/30 bg-emerald-50 shadow-sm dark:bg-emerald-500/10' : ''}`}
+                >
+                  <ChatAvatar name={conversation.name} online={conversation.online} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">{conversation.name}</p>
+                        {!conversation.online && convoTimeAgo ? (
+                          <span className="text-xs text-zinc-400 dark:text-zinc-500">· {convoTimeAgo}</span>
+                        ) : null}
+                      </div>
+                      <span className="text-[11px] text-zinc-400">{conversation.time}</span>
+                    </div>
+                    <div className="mt-1 flex items-center justify-between gap-3">
+                      <p className="truncate text-sm text-zinc-500 dark:text-zinc-400">{conversation.lastMessage}</p>
+                      {conversation.unread > 0 ? (
+                        <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-semibold text-white">
+                          {conversation.unread}
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-zinc-400 dark:text-zinc-500">No unread</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="mt-1 flex items-center justify-between gap-3">
-                    <p className="truncate text-sm text-zinc-500 dark:text-zinc-400">{conversation.lastMessage}</p>
-                    {conversation.unread > 0 ? (
-                      <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-semibold text-white">
-                        {conversation.unread}
-                      </span>
-                    ) : (
-                      <span className="text-[11px] text-zinc-400 dark:text-zinc-500">No unread</span>
-                    )}
-                  </div>
-                </div>
-              </button>
-            ))
+                </button>
+              );
+            })
           )}
+
+          {/* Contacts / Friends section (compact last-seen shown) */}
+          {friends && friends.length > 0 ? (
+            <div className="mt-6 rounded-3xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-950">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Contacts</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Tap a friend to start a chat</p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {friends.map((friend) => {
+                  const lastSeen = (friend as any).lastSeen as string | undefined | null;
+                  const online = Boolean((friend as any).online);
+                  return (
+                    <button
+                      key={friend.id}
+                      type="button"
+                      onClick={() => {
+                        if (typeof onStartChatWithFriend === 'function') onStartChatWithFriend(friend.id);
+                        onClose();
+                      }}
+                      className="group flex w-full items-center justify-between gap-3 rounded-3xl border border-transparent bg-white px-4 py-3 text-left transition duration-150 hover:border-zinc-200 hover:bg-zinc-50 dark:bg-zinc-950 dark:hover:border-zinc-700 dark:hover:bg-zinc-900"
+                    >
+                      <div className="flex items-center gap-3">
+                        <ChatAvatar name={friend.name} online={online} lastSeen={lastSeen} />
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">{friend.name}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">{(friend as any).email || (friend as any).phone}</p>
+                            {!online && lastSeen ? (
+                              <span className="text-xs text-zinc-400 dark:text-zinc-500">· {timeAgoShort(lastSeen)}</span>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-[11px] text-zinc-400">Chat</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
         </div>
       </aside>
     </>

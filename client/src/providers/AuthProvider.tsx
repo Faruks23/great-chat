@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState, createContext, useContext } from 'react';
+import { useEffect, useMemo, useState, useRef, createContext, useContext } from 'react';
 import socket from '@/lib/socket';
 import type { ReactNode } from 'react';
 import type { User } from '@/types';
 import { clearAuthSession, getAuthUser, getAuthToken } from '@/lib/auth';
 import { useAppDispatch } from '@/hooks/useAppDispatch';
 import { setConversationOnline } from '@/store/chatSlice';
+import { useQueryClient } from '@tanstack/react-query';
 
 type AuthContextValue = {
   user: User | null;
@@ -29,6 +30,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsReady(true);
   }, []);
 
+  let queryClient: any = null;
+  try {
+    queryClient = useQueryClient();
+  } catch (e) {
+    // QueryClientProvider may not be present during server build — we'll skip cache updates in that case.
+    queryClient = null;
+  }
+
+  const presenceBufferRef = useRef<Record<string, boolean>>({});
+  const flushTimerRef = useRef<number | null>(null);
+
   useEffect(() => {
     if (!user) return;
 
@@ -36,12 +48,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       socket.connect();
     }
 
+    const flushBuffer = () => {
+      try {
+        if (queryClient) {
+          queryClient.setQueryData(['currentUser'], (old: any) => {
+            if (!old || !Array.isArray(old.friends)) {
+              presenceBufferRef.current = {};
+              return old;
+            }
+            const buffered = presenceBufferRef.current;
+            const friends = old.friends.map((f: any) => (buffered.hasOwnProperty(f.id) ? { ...f, online: Boolean(buffered[f.id]) } : f));
+            presenceBufferRef.current = {};
+            return { ...old, friends };
+          });
+        } else {
+          presenceBufferRef.current = {};
+        }
+      } catch (e) {
+        // ignore
+        presenceBufferRef.current = {};
+      }
+      if (flushTimerRef.current) {
+        clearTimeout(flushTimerRef.current);
+        flushTimerRef.current = null;
+      }
+    };
+
+    const scheduleFlush = () => {
+      if (flushTimerRef.current) return;
+      // 250ms debounce window
+      flushTimerRef.current = window.setTimeout(flushBuffer, 250) as unknown as number;
+    };
+
     const handlePresenceStatus = (payload: { id: string; online: boolean }) => {
       dispatch(setConversationOnline({ userId: payload.id, online: payload.online }));
+
+      // Buffer cache update and debounce flush
+      try {
+        presenceBufferRef.current[payload.id] = payload.online;
+        scheduleFlush();
+      } catch (e) {
+        // ignore
+      }
     };
 
     const handlePresenceInit = (onlineUsers: string[]) => {
-      onlineUsers.forEach((id) => handlePresenceStatus({ id, online: true }));
+      // Build a Set for faster lookup
+      const onlineSet = new Set(onlineUsers);
+
+      // Update conversations presence
+      onlineUsers.forEach((id) => dispatch(setConversationOnline({ userId: id, online: true })));
+
+      // Also update currentUser cache in batch immediately
+      try {
+        if (queryClient) {
+          queryClient.setQueryData(['currentUser'], (old: any) => {
+            if (!old) return old;
+            const friends = Array.isArray(old.friends)
+              ? old.friends.map((f: any) => ({ ...f, online: onlineSet.has(f.id) }))
+              : old.friends;
+            return { ...old, friends };
+          });
+        }
+      } catch (e) {
+        // ignore
+      }
     };
 
     const syncPresence = () => {
@@ -78,6 +149,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       socket.off('presence:update', handlePresenceStatus);
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (flushTimerRef.current) {
+        clearTimeout(flushTimerRef.current);
+        flushTimerRef.current = null;
+      }
+      presenceBufferRef.current = {};
       if (user?.id) {
         try {
           socket.emit('presence:update', { id: user.id, online: false });
@@ -86,7 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     };
-  }, [dispatch, user]);
+  }, [dispatch, user, queryClient]);
 
   const token = useMemo(() => getAuthToken(), [user]);
   const isAuthenticated = Boolean(token && (user || !isReady));

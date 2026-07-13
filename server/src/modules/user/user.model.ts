@@ -7,6 +7,7 @@ export interface UserDocument extends Document {
   password: string;
   avatar?: string;
   friends?: string[];
+  lastSeen?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -19,6 +20,7 @@ const UserSchema = new Schema<UserDocument>(
     password: { type: String, required: true },
     avatar: { type: String },
     friends: [{ type: String, ref: 'User' }],
+    lastSeen: { type: Date },
   },
   { timestamps: true }
 );

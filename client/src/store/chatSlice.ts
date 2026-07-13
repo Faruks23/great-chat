@@ -13,15 +13,19 @@ export type Conversation = {
   time: string;
   unread: number;
   online: boolean;
+  lastSeen?: string;
 };
 
 export type MessageAttachment = {
-  type: 'image' | 'file' | 'voice';
+  id?: string;
+  type: 'image' | 'video' | 'file' | 'voice';
   url?: string;
   name?: string;
   mimeType?: string;
   size?: number;
   duration?: number;
+  progress?: number;
+  isUploading?: boolean;
 };
 
 export type MessageReaction = {

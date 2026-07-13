@@ -12,6 +12,7 @@ import IncomingCallModal from '@/components/chat/components/IncomingCallModal';
 import type { Conversation, ChatMessage } from '@/store/chatSlice';
 import type { UseQueryResult } from '@tanstack/react-query';
 import type { IncomingCallPayload } from '@/components/chat/hooks/useChatSocket';
+import type { User } from '@/types';
 
 export type ChatLayoutProps = {
   activeId?: string;
@@ -48,7 +49,10 @@ export type ChatLayoutProps = {
   onQueryChange: (value: string) => void;
   onSelectConversation: (id: string) => void;
   onCreateConversation: (conversation: Conversation) => void;
+  onStartChatWithFriend: (friendId: string) => void;
+  onFriendAdded: (friend: User, conversationId?: string) => void;
   onToggleTheme: () => void;
+  friends: User[];
 };
 
 /**
@@ -90,6 +94,9 @@ export default function ChatLayout({
   onQueryChange,
   onSelectConversation,
   onCreateConversation,
+  onStartChatWithFriend,
+  onFriendAdded,
+  friends,
   onToggleTheme,
 }: ChatLayoutProps) {
   const chatState = useAppSelector((state) => state.chat);
@@ -144,6 +151,7 @@ export default function ChatLayout({
         conversations={chatState.conversations}
         activeId={activeConversation?.id ?? ''}
         filteredConversations={filteredConversations}
+        friends={friends}
         query={query}
         sidebarOpen={sidebarOpen}
         theme={theme}
@@ -151,6 +159,7 @@ export default function ChatLayout({
         onQueryChange={onQueryChange}
         onSelectConversation={onSelectConversation}
         onCreateConversation={onCreateConversation}
+        onStartChatWithFriend={onStartChatWithFriend}
         onToggleTheme={onToggleTheme}
       />
 

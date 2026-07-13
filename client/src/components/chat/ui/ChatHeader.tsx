@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Menu, MoreVertical, Phone, Video, LogOut, X } from 'lucide-react';
 import ChatAvatar from './ChatAvatar';
+import { timeAgoShort, timeAgoLong } from '@/lib/time';
 import { useAppDispatch } from '@/hooks/useAppDispatch';
 import { useAuth } from '@/hooks/useAuth';
 import socket from '@/lib/socket';
@@ -25,6 +26,7 @@ export default function ChatHeader({ active, onToggleSidebar, onCloseConversatio
 
   const dispatch = useAppDispatch();
   const { user, logout } = useAuth();
+
 
   const ensureSocketConnected = async () => {
     if (socket.connected) return;
@@ -95,13 +97,13 @@ export default function ChatHeader({ active, onToggleSidebar, onCloseConversatio
         <Button variant="ghost" className="sm:hidden" onClick={onToggleSidebar}>
           <Menu className="h-4 w-4" />
         </Button>
-        <ChatAvatar name={active.name} online={active.online} size={32} />
+        <ChatAvatar name={active.name} online={active.online} size={32} lastSeen={(active as any).lastSeen} />
         <div>
           <div className="flex items-center gap-2">
             <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{active.name}</p>
             <span className={`h-2.5 w-2.5 rounded-full ${active.online ? 'bg-emerald-500' : 'bg-zinc-400'}`} />
           </div>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">{active.online ? 'Online' : 'Last seen recently'}</p>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">{active.online ? 'Online' : (active as any).lastSeen ? `Last seen ${timeAgoLong((active as any).lastSeen)}` : 'Last seen recently'}</p>
         </div>
       </div>
 
