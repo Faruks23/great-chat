@@ -7,11 +7,12 @@
 - File storage: Cloudinary free tier
 
 ## 1) Backend on Render
-1. Create a new Web Service on Render using the server folder.
-2. Set the build command to `npm install && npm run build`.
-3. Set the start command to `npm run start`.
-4. Add environment variables from server/.env.example.
-5. Use the generated Render URL as your backend base URL.
+1. In Render, create a new Web Service and choose the repository root as your GitHub repo.
+2. In the service settings, set the Root Directory to `server`.
+3. Set the build command to `npm install && npm run build`.
+4. Set the start command to `npm run start`.
+5. Add environment variables from server/.env.example.
+6. Use the generated Render URL as your backend base URL.
 
 ## 2) Frontend on Vercel
 1. Import the client folder into Vercel.
