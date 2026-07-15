@@ -23,7 +23,7 @@ import { BackgroundSettings } from './BackgroundSettings';
 import { ScreenShareModal } from './ScreenShareModal';
 import { HandRaiseIndicator } from './HandRaiseIndicator';
 import { RecordingIndicator } from './RecordingIndicator';
-import socket from '@/lib/socket';
+import { getSocket } from '@/lib/socket';
 
 interface GroupMember {
   id: string;
@@ -176,8 +176,12 @@ export function GroupCall({
         const stream = await startScreenShare();
         if (stream) {
           setScreenShareStream(stream);
+          stream.getVideoTracks()[0]?.addEventListener('ended', () => setScreenShareStream(null), { once: true });
         }
-        socket.emit('screen:start', { userId: 'current-user-id', isSharing: true });
+        const socket = getSocket();
+        if (socket) {
+          socket.emit('screen:start', { userId: 'current-user-id', isSharing: true });
+        }
         setIsScreenShareModalOpen(false);
       } else {
         console.warn('startScreenShare not provided by call session');
@@ -192,7 +196,10 @@ export function GroupCall({
       if (typeof stopScreenShare === 'function') {
         await stopScreenShare();
       }
-      socket.emit('screen:stop', { userId: 'current-user-id', isSharing: false });
+      const socket = getSocket();
+      if (socket) {
+        socket.emit('screen:stop', { userId: 'current-user-id', isSharing: false });
+      }
       setScreenShareStream(null);
     } catch (err) {
       console.error('Failed to stop screen sharing:', err);
@@ -200,7 +207,7 @@ export function GroupCall({
   };
 
   useEffect(() => {
-    const handleRemoteScreenShare = (data: { userId: string; isSharing: boolean }) => {
+    const socket = getSocket();    if (!socket) return;       const handleRemoteScreenShare = (data: { userId: string; isSharing: boolean }) => {
       if (!data.isSharing) {
         setRemoteScreenStream(null);
         // clear seen remote screen track ids when sharing stops
@@ -604,3 +611,4 @@ export function GroupCall({
     </div>
   );
 }
+

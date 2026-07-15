@@ -7,7 +7,7 @@ import ChatAvatar from './ChatAvatar';
 import { timeAgoShort, timeAgoLong } from '@/lib/time';
 import { useAppDispatch } from '@/hooks/useAppDispatch';
 import { useAuth } from '@/hooks/useAuth';
-import socket from '@/lib/socket';
+import { getSocket } from '@/lib/socket';
 import type { Conversation } from '@/store/chatSlice';
 import { setActiveCall } from '@/store/chatSlice';
 
@@ -29,6 +29,8 @@ export default function ChatHeader({ active, onToggleSidebar, onCloseConversatio
 
 
   const ensureSocketConnected = async () => {
+    const socket = getSocket();
+    if (!socket) throw new Error('Socket connection is unavailable');
     if (socket.connected) return;
 
     socket.connect();
@@ -70,6 +72,8 @@ export default function ChatHeader({ active, onToggleSidebar, onCloseConversatio
 
     try {
       await ensureSocketConnected();
+      const socket = getSocket();
+      if (!socket) throw new Error('Socket connection is unavailable');
       const userId = user?.id;
       const participants: any[] = (active as any).participants || [];
       const targetIds = participants

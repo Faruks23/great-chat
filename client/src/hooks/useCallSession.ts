@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppDispatch } from '@/hooks/useAppDispatch';
-import socket from '@/lib/socket';
+import { getSocket } from '@/lib/socket';
 import { endCall, setActiveCall, updateCallStatus } from '@/store/chatSlice';
 
 export type CallMode = 'voice' | 'video';
@@ -29,6 +29,7 @@ type CallUiState = {
   role: 'offerer' | 'answerer' | 'waiting';
   isMuted: boolean;
   isVideoEnabled: boolean;
+  isScreenSharing: boolean;
   hasLocalMedia: boolean;
   hasRemoteMedia: boolean;
   showPanel: boolean;
@@ -58,6 +59,7 @@ const createInitialState = (mode: CallMode): CallUiState => ({
   role: 'waiting',
   isMuted: false,
   isVideoEnabled: mode === 'video',
+  isScreenSharing: false,
   hasLocalMedia: false,
   hasRemoteMedia: false,
   showPanel: false,
@@ -92,7 +94,13 @@ export function useCallSession({ room, mode, kind }: UseCallSessionProps) {
   const screenStreamRef = useRef<MediaStream | null>(null);
   const originalVideoTrackRef = useRef<MediaStreamTrack | null>(null);
   const isScreenSharingRef = useRef(false);
-  const localId = useRef<string>(socket.id || `user-${Math.random().toString(36).slice(2, 11)}`);
+
+  const generateLocalId = () => {
+    const socket = getSocket();
+    return socket?.id || `user-${Math.random().toString(36).slice(2, 11)}`;
+  };
+
+  const localId = useRef<string>(generateLocalId());
   const pendingOffersRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
@@ -263,6 +271,15 @@ export function useCallSession({ room, mode, kind }: UseCallSessionProps) {
 
   useEffect(() => {
     if (!mounted || !uiState.callStarted) return;
+
+    const socket = getSocket();
+    if (!socket) {
+      updateUi({
+        connectionState: 'error',
+        statusMessage: 'The call connection could not be initialized.',
+      });
+      return;
+    }
 
     let active = true;
     let handleSignal: ((payload: CallSignalPayload) => void) | null = null;
@@ -626,13 +643,13 @@ export function useCallSession({ room, mode, kind }: UseCallSessionProps) {
       hasRemoteMedia: false,
       statusMessage: 'The call ended. You can start a fresh session anytime.',
     });
-    socket.emit('call:leave', room, localId.current);
+    getSocket()?.emit('call:leave', room, localId.current);
     dispatch(endCall());
     setLog('Call ended');
   };
 
   const resendReady = () => {
-    socket.emit('call:signal', {
+    getSocket()?.emit('call:signal', {
       room,
       senderId: localId.current,
       mode,
@@ -665,7 +682,13 @@ export function useCallSession({ room, mode, kind }: UseCallSessionProps) {
     }
 
     try {
-      const displayStream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: 'always' } as unknown as MediaTrackConstraints, audio: false });
+      const displayStream = await navigator.mediaDevices.getDisplayMedia({
+        video: { cursor: 'always' } as unknown as MediaTrackConstraints,
+        audio: false,
+        // Chromium uses this hint to avoid offering the current tab as a share
+        // source. That prevents the call UI from being captured recursively.
+        selfBrowserSurface: 'exclude',
+      } as unknown as MediaStreamConstraints);
       const screenTrack = displayStream.getVideoTracks()[0];
       if (!screenTrack) return null;
 
@@ -687,18 +710,16 @@ export function useCallSession({ room, mode, kind }: UseCallSessionProps) {
         });
       });
 
-      // show local preview using the screen stream
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = displayStream;
-        void localVideoRef.current.play().catch(() => undefined);
-      }
+      // Keep the local picture-in-picture on the camera. Rendering the captured
+      // display inside the window being shared produces an infinite mirror on
+      // the receiver when the user shares their monitor or this browser tab.
 
       // when user stops sharing from browser UI, restore camera
       screenTrack.onended = () => {
         stopScreenShare();
       };
 
-      updateUi({ statusMessage: 'You are sharing your screen.' });
+      updateUi({ isScreenSharing: true, statusMessage: 'You are sharing your screen.' });
       setLog('Screen sharing started');
       return displayStream;
     } catch (err) {
@@ -742,7 +763,7 @@ export function useCallSession({ room, mode, kind }: UseCallSessionProps) {
     originalVideoTrackRef.current = null;
     isScreenSharingRef.current = false;
 
-    updateUi({ statusMessage: 'Screen sharing stopped' });
+    updateUi({ isScreenSharing: false, statusMessage: 'Screen sharing stopped' });
     setLog('Screen sharing stopped');
   };
 

@@ -1,5 +1,5 @@
 import type { Middleware } from '@reduxjs/toolkit';
-import socket from '@/lib/socket';
+import { getSocket } from '@/lib/socket';
 import { appendMessage, setActiveConversation } from '@/store/chatSlice';
 
 /**
@@ -13,6 +13,9 @@ export const socketMiddleware: Middleware = (store) => (next) => (action) => {
   const result = next(action);
 
   try {
+    const socket = getSocket();
+    if (!socket) return result;
+
     // When active conversation changes, leave previous and join new room.
     if (action.type === setActiveConversation.type) {
       const newActive = action.payload as string;

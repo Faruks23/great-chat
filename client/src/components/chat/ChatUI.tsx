@@ -6,7 +6,7 @@ import { useTheme } from 'next-themes';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppDispatch } from '@/hooks/useAppDispatch';
 import { useAppSelector } from '@/hooks/useAppSelector';
-import socket from '@/lib/socket';
+import { getSocket } from '@/lib/socket';
 import { requestNotificationPermission } from '@/lib/pwa';
 import { uploadFile } from '@/services/uploadService';
 import { fetchConversationByUser } from '@/services/chatService';
@@ -246,6 +246,8 @@ export default function ChatUI() {
     }
 
     if (!activeId) return;
+    const socket = getSocket();
+    if (!socket) return;
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     socket.emit('chat:typing', { conversationId: activeId, isTyping: true });
     typingTimeoutRef.current = setTimeout(() => socket.emit('chat:typing', { conversationId: activeId, isTyping: false }), 800);
@@ -253,6 +255,7 @@ export default function ChatUI() {
 
   const sendMessage = async () => {
     if (!activeId) return;
+    const socket = getSocket();
     const text = draft.trim();
     if (!text && attachments.length === 0) return;
     if (attachments.some((a) => a.isUploading)) return;
@@ -283,7 +286,7 @@ export default function ChatUI() {
 
     setDraftValue('');
     setReplyTo(null);
-    socket.emit('chat:typing', { conversationId: activeId, isTyping: false });
+    socket?.emit('chat:typing', { conversationId: activeId, isTyping: false });
     setAttachments([]);
   };
 

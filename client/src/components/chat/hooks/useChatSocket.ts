@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAppDispatch } from '@/hooks/useAppDispatch';
-import socket from '@/lib/socket';
+import { getSocket } from '@/lib/socket';
 import { appendMessage, markMessagesReadForSender } from '@/store/chatSlice';
 import type { ChatMessage } from '@/store/chatSlice';
 import { normalizeMessage } from '@/components/chat/utils/chat';
@@ -44,6 +44,9 @@ export function useChatSocket({ activeId, activeConversationName, user, setIsTyp
   }, [incomingCall]);
 
   useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return;
+
     if (!socket.connected) {
       socket.connect();
     }

@@ -19,7 +19,7 @@ import { ChatPanel } from './ChatPanel';
 import { BackgroundSettings } from './BackgroundSettings';
 import { ScreenShareModal } from './ScreenShareModal';
 import { RecordingIndicator } from './RecordingIndicator';
-import socket from '@/lib/socket';
+import { getSocket } from '@/lib/socket';
 
 interface OneToOneCallProps {
   remoteUserName?: string;
@@ -87,7 +87,7 @@ export function OneToOneCall({
   const [isScreenShareModalOpen, setIsScreenShareModalOpen] = useState(false);
   const [screenShareStream, setScreenShareStream] = useState<MediaStream | null>(null);
   const [remoteScreenStream, setRemoteScreenStream] = useState<MediaStream | null>(null);
-  const screenShareError = null;  const [messages, setMessages] = useState<ChatMessage[]>([
+  const screenShareError = null; const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
       sender: 'Sarah Johnson',
@@ -123,8 +123,9 @@ export function OneToOneCall({
         const stream = await startScreenShare();
         if (stream) {
           setScreenShareStream(stream);
+          stream.getVideoTracks()[0]?.addEventListener('ended', () => setScreenShareStream(null), { once: true });
         }
-        socket.emit('screen:start', { userId: 'current-user-id', isSharing: true });
+        const socket = getSocket();        if (socket) {          socket.emit('screen:start', { userId: 'current-user-id', isSharing: true }); }
         setIsScreenShareModalOpen(false);
       } else {
         console.warn('startScreenShare not provided by call session');
@@ -139,7 +140,7 @@ export function OneToOneCall({
       if (typeof stopScreenShare === 'function') {
         await stopScreenShare();
       }
-      socket.emit('screen:stop', { userId: 'current-user-id', isSharing: false });
+      const socket = getSocket();      if (socket) {        socket.emit('screen:stop', { userId: 'current-user-id', isSharing: false }); }
       setScreenShareStream(null);
     } catch (err) {
       console.error('Failed to stop screen sharing:', err);
@@ -147,7 +148,7 @@ export function OneToOneCall({
   };
 
   useEffect(() => {
-    const handleRemoteScreenShare = (data: { userId: string; isSharing: boolean }) => {
+    const socket = getSocket();    if (!socket) return;       const handleRemoteScreenShare = (data: { userId: string; isSharing: boolean }) => {
       if (!data.isSharing) {
         setRemoteScreenStream(null);
       }

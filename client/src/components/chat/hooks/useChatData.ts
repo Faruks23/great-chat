@@ -30,7 +30,7 @@ import {
   setDraft,
   setMessagesForConversation,
 } from '@/store/chatSlice';
-import socket from '@/lib/socket';
+import { getSocket } from '@/lib/socket';
 import { fetchConversationByUser, fetchConversations, fetchMessages } from '@/services/chatService';
 import { normalizeMessage } from '@/components/chat/utils/chat';
 import type { User } from '@/types';
@@ -194,6 +194,8 @@ export function useChatData(initialUser: User | null) {
       dispatch(markMessagesAsRead(activeId));
       // Notify server/participants that the current user has read messages
       try {
+        const socket = getSocket();
+        if (!socket) return;
         if (!socket.connected) socket.connect();
         socket.emit('chat:read', { conversationId: activeId, readerId: authUser?.id });
       } catch (err) {

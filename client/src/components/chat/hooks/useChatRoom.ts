@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import socket from '@/lib/socket';
+import { getSocket } from '@/lib/socket';
 
 /**
  * useChatRoom joins the active chat room on the socket whenever the active conversation changes.
@@ -12,6 +12,9 @@ export function useChatRoom(activeId: string | null) {
 
   useEffect(() => {
     if (!activeId) return;
+
+    const socket = getSocket();
+    if (!socket) return;
 
     if (currentRoom.current !== null) {
       socket.emit('chat:leave', currentRoom.current);

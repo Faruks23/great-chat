@@ -1,13 +1,13 @@
 'use client';
 
 import { useEffect, useMemo, useState, useRef, createContext, useContext } from 'react';
-import socket from '@/lib/socket';
 import type { ReactNode } from 'react';
 import type { User } from '@/types';
 import { clearAuthSession, getAuthUser, getAuthToken } from '@/lib/auth';
 import { useAppDispatch } from '@/hooks/useAppDispatch';
 import { setConversationOnline } from '@/store/chatSlice';
 import { useQueryClient } from '@tanstack/react-query';
+import { getSocket } from '@/lib/socket';
 
 type AuthContextValue = {
   user: User | null;
@@ -43,6 +43,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!user) return;
+
+    const socket = getSocket();
+    if (!socket) return;
 
     if (!socket.connected) {
       socket.connect();

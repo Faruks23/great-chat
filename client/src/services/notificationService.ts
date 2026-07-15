@@ -27,7 +27,8 @@ export async function sendSocketNotification(payload: {
   data?: { url?: string; conversationId?: string; senderId?: string; recipientId?: string };
 }) {
   const socketModule = await import('@/lib/socket');
-  const socket = socketModule.default;
+  const socket = socketModule.getSocket();
+  if (!socket) return;
   if (!socket.connected) {
     socket.connect();
   }

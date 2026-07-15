@@ -126,6 +126,7 @@ export default function Page() {
           onEndCall={handleCancelCall}
           startScreenShare={callSession.startScreenShare}
           stopScreenShare={callSession.stopScreenShare}
+          isScreenSharing={callSession.isScreenSharing}
         />
       </div>
     );
@@ -160,6 +161,7 @@ export default function Page() {
           onEndCall={handleCancelCall}
           startScreenShare={callSession.startScreenShare}
           stopScreenShare={callSession.stopScreenShare}
+          isScreenSharing={callSession.isScreenSharing}
         />
       </div>
     );
