@@ -39,4 +39,22 @@ export class UploadService {
 
     return UploadModel.create(data);
   }
+
+  static async saveFromCloudinary(payload: Partial<{ secure_url: string; public_id: string; bytes: number; resource_type: string; format: string; original_filename?: string; mime_type?: string }>) {
+    if (!payload || !payload.secure_url) {
+      throw new Error('Missing secure_url from Cloudinary payload');
+    }
+
+    const data = {
+      originalName: payload.original_filename ?? payload.public_id ?? 'cloudinary-upload',
+      filename: payload.public_id ?? String(Date.now()),
+      url: payload.secure_url,
+      mimeType: payload.mime_type ?? (payload.resource_type ?? 'auto'),
+      size: payload.bytes ?? 0,
+      resourceType: payload.resource_type ?? 'auto',
+      publicId: payload.public_id ?? '',
+    };
+
+    return UploadModel.create(data);
+  }
 }

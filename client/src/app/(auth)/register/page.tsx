@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { register } from '@/services/authService';
 import { saveAuthSession } from '@/lib/auth';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -17,6 +18,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const { refresh } = useAuth();
 
   const hasEmail = useMemo(() => email.trim().length > 0, [email]);
   const hasPhone = useMemo(() => phone.trim().length > 0, [phone]);
@@ -34,6 +36,11 @@ export default function RegisterPage() {
 
       const response = await register({ name, ...(hasEmail ? { email } : {}), ...(hasPhone ? { phone } : {}), password });
       saveAuthSession(response);
+      try {
+        refresh();
+      } catch (e) {
+        // ignore when provider not available
+      }
       router.push('/chat');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed.');

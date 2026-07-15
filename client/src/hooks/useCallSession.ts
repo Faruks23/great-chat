@@ -74,6 +74,7 @@ export function useCallSession({ room, mode, kind }: UseCallSessionProps) {
   const [remoteStreams, setRemoteStreams] = useState<Record<string, MediaStream>>({});
   const [participants, setParticipants] = useState<string[]>([]);
   const participantsRef = useRef<string[]>([]);
+  const [connectedAt, setConnectedAt] = useState<Date | null>(null);
 
   const updateParticipants = (updater: (current: string[]) => string[]) => {
     setParticipants((current) => {
@@ -88,6 +89,9 @@ export function useCallSession({ room, mode, kind }: UseCallSessionProps) {
   const peersRef = useRef<Record<string, RTCPeerConnection>>({});
   const remoteStreamsRef = useRef<Record<string, MediaStream>>({});
   const localStreamRef = useRef<MediaStream | null>(null);
+  const screenStreamRef = useRef<MediaStream | null>(null);
+  const originalVideoTrackRef = useRef<MediaStreamTrack | null>(null);
+  const isScreenSharingRef = useRef(false);
   const localId = useRef<string>(socket.id || `user-${Math.random().toString(36).slice(2, 11)}`);
   const pendingOffersRef = useRef<Set<string>>(new Set());
 
@@ -120,6 +124,32 @@ export function useCallSession({ room, mode, kind }: UseCallSessionProps) {
     if (uiState.connectionState === 'error') return 'Needs attention';
     return 'Ready to join';
   }, [uiState.connectionState, uiState.permissionError]);
+
+  const remoteParticipantName = useMemo(() => {
+    const remoteIds = participants.filter((id) => id && id !== localId.current);
+    if (remoteIds.length === 0) return null;
+    const firstRemoteId = remoteIds[0];
+    if (firstRemoteId.startsWith('user-')) {
+      return `Participant ${firstRemoteId.slice(5, 9)}`;
+    }
+    return `Participant ${firstRemoteId.slice(-4)}`;
+  }, [participants]);
+
+  const callDuration = useMemo(() => {
+    if (!connectedAt || !now) return '00:00';
+    const seconds = Math.max(0, Math.floor((now.getTime() - connectedAt.getTime()) / 1000));
+    const minutes = Math.floor(seconds / 60);
+    const remainderSeconds = seconds % 60;
+    return `${String(minutes).padStart(2, '0')}:${String(remainderSeconds).padStart(2, '0')}`;
+  }, [connectedAt, now]);
+
+  useEffect(() => {
+    if (uiState.connectionState === 'connected') {
+      setConnectedAt((current) => current ?? new Date());
+    } else {
+      setConnectedAt(null);
+    }
+  }, [uiState.connectionState]);
 
   const attachLocalStream = (stream: MediaStream) => {
     localStreamRef.current = stream;
@@ -282,9 +312,39 @@ export function useCallSession({ room, mode, kind }: UseCallSessionProps) {
       peersRef.current[peerId] = pc;
       setLog(`Peer connection created for ${peerId}`);
 
+      // When a new peer connection is created, add local tracks. If screen sharing
+      // is active, replace the video track with the screen track when adding.
+      // Add local tracks (audio + video) normally.
       localStreamRef.current?.getTracks().forEach((track) => {
-        pc.addTrack(track, localStreamRef.current!);
+        try {
+          pc.addTrack(track, localStreamRef.current!);
+        } catch (e) {
+          // ignore addTrack errors per peer
+        }
       });
+
+      // If screen sharing is active, replace existing video sender(s) with screen track
+      // rather than adding new senders. Add defensive logging if multiple video senders exist.
+      if (isScreenSharingRef.current && screenStreamRef.current) {
+        const screenTrack = screenStreamRef.current.getVideoTracks()[0];
+        if (screenTrack) {
+          const senders = pc.getSenders();
+          const videoSenders = senders.filter((s) => s.track && s.track.kind === 'video');
+          if (videoSenders.length > 1) {
+            console.warn(`Peer ${peerId} has ${videoSenders.length} video senders; replacing tracks to avoid duplicates.`, videoSenders.map((s) => s.track?.id));
+          } else {
+            console.debug(`Peer ${peerId} video senders: ${videoSenders.length}`);
+          }
+
+          videoSenders.forEach((sender) => {
+            try {
+              sender.replaceTrack(screenTrack);
+            } catch (e) {
+              // ignore per-sender replace errors
+            }
+          });
+        }
+      }
 
       pc.onicecandidate = (event) => {
         if (event.candidate) {
@@ -301,7 +361,16 @@ export function useCallSession({ room, mode, kind }: UseCallSessionProps) {
       };
 
       pc.ontrack = (event) => {
-        const stream = event.streams?.[0] ?? (event.track ? new MediaStream([event.track]) : null);
+        const track = event.track;
+        const isScreenTrack = track.kind === 'video' && track.label.toLowerCase().includes('screen');
+        if (isScreenTrack) {
+          // Screen-share tracks are handled by the UI layer separately. Do not
+          // replace the main remote video stream with the screen track here.
+          setLog(`Received screen-share track from ${peerId}`);
+          return;
+        }
+
+        const stream = event.streams?.[0] ?? (track ? new MediaStream([track]) : null);
         if (!stream) return;
         remoteStreamsRef.current[peerId] = stream;
         setRemoteStreams({ ...remoteStreamsRef.current });
@@ -587,9 +656,101 @@ export function useCallSession({ room, mode, kind }: UseCallSessionProps) {
   const timeLabel = now ? now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
   const dateLabel = now ? now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : '';
 
+  // Screen share control: start and stop screen sharing and replace outgoing video tracks
+  const startScreenShare = async () => {
+    if (!navigator.mediaDevices?.getDisplayMedia) {
+      setLog('Screen sharing is not supported in this browser');
+      updateUi({ statusMessage: 'Screen sharing is not supported in this browser.' });
+      return null;
+    }
+
+    try {
+      const displayStream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: 'always' } as unknown as MediaTrackConstraints, audio: false });
+      const screenTrack = displayStream.getVideoTracks()[0];
+      if (!screenTrack) return null;
+
+      // store original camera track so we can restore it
+      originalVideoTrackRef.current = localStreamRef.current?.getVideoTracks()?.[0] ?? null;
+      screenStreamRef.current = displayStream;
+      isScreenSharingRef.current = true;
+
+      // replace video sender track for each peer
+      Object.values(peersRef.current).forEach((pc) => {
+        pc.getSenders().forEach((sender) => {
+          if (sender.track && sender.track.kind === 'video') {
+            try {
+              sender.replaceTrack(screenTrack);
+            } catch (e) {
+              // some browsers may throw, ignore per-sender errors
+            }
+          }
+        });
+      });
+
+      // show local preview using the screen stream
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = displayStream;
+        void localVideoRef.current.play().catch(() => undefined);
+      }
+
+      // when user stops sharing from browser UI, restore camera
+      screenTrack.onended = () => {
+        stopScreenShare();
+      };
+
+      updateUi({ statusMessage: 'You are sharing your screen.' });
+      setLog('Screen sharing started');
+      return displayStream;
+    } catch (err) {
+      setLog(`Screen share failed: ${(err as Error).message}`);
+      return null;
+    }
+  };
+
+  const stopScreenShare = () => {
+    if (!isScreenSharingRef.current) return;
+
+    const screenStream = screenStreamRef.current;
+    const originalTrack = originalVideoTrackRef.current;
+
+    // restore original camera track on each peer sender
+    Object.values(peersRef.current).forEach((pc) => {
+      pc.getSenders().forEach((sender) => {
+        if (sender.track && sender.track.kind === 'video') {
+          try {
+            // prefer the original camera track, otherwise enable null
+            sender.replaceTrack(originalTrack ?? null);
+          } catch (e) {
+            // swallow per-sender errors
+          }
+        }
+      });
+    });
+
+    // restore local preview to camera stream
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = localStreamRef.current ?? null;
+      if (localStreamRef.current) void localVideoRef.current.play().catch(() => undefined);
+    }
+
+    // stop screen stream tracks
+    if (screenStream) {
+      screenStream.getTracks().forEach((t) => t.stop());
+    }
+
+    screenStreamRef.current = null;
+    originalVideoTrackRef.current = null;
+    isScreenSharingRef.current = false;
+
+    updateUi({ statusMessage: 'Screen sharing stopped' });
+    setLog('Screen sharing stopped');
+  };
+
   return {
     ...uiState,
     connectionStatus,
+    remoteParticipantName,
+    callDuration,
     localVideoRef,
     remoteVideoRef,
     timeLabel,
@@ -607,6 +768,8 @@ export function useCallSession({ room, mode, kind }: UseCallSessionProps) {
     hangupCall,
     resendReady,
     copyRoomLink,
+    startScreenShare,
+    stopScreenShare,
     setShowPanel: (value: boolean | ((current: boolean) => boolean)) => {
       setUiState((current) => ({
         ...current,

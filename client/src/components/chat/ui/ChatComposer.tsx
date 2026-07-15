@@ -1,7 +1,8 @@
 'use client';
 
-import { Mic, Paperclip, Search, Send, Smile, X } from 'lucide-react';
-import { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
+import { Mic, Paperclip, Search, Send, X } from 'lucide-react';
+import EmojiPicker from './EmojiPicker';
 import { Button } from '@/components/ui/button';
 import type { MessageAttachment } from '@/store/chatSlice';
 
@@ -45,6 +46,14 @@ export default function ChatComposer({
   onCancelReply,
 }: ChatComposerProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const emojiBtnRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    const handler = () => setShowEmojiPicker(false);
+    window.addEventListener('emojiPicker:close', handler as EventListener);
+    return () => window.removeEventListener('emojiPicker:close', handler as EventListener);
+  }, []);
 
   return (
     <div className="sticky bottom-0 left-0 right-0 z-20 border-t border-zinc-200 bg-white/95 px-4 py-3 backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-950/95 md:static md:px-4 md:py-4">
@@ -134,14 +143,26 @@ export default function ChatComposer({
           </Button>
 
           {/** Add a quick emoji to the draft text. */}
-          <Button
-            variant="ghost"
-            className="inline-flex h-10 w-10 min-w-[2.5rem] items-center justify-center rounded-full border border-zinc-200 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-            aria-label="Add emoji"
-            onClick={() => onAddEmoji('😊')}
-          >
-            <Smile className="h-4 w-4" />
-          </Button>
+          <div className="relative">
+            <Button
+              variant="ghost"
+              className="inline-flex h-10 w-10 min-w-[2.5rem] items-center justify-center rounded-full border border-zinc-200 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              aria-label="Open emoji picker"
+              onClick={() => setShowEmojiPicker((s) => !s)}
+            >
+              <span className="text-lg">😊</span>
+            </Button>
+            {showEmojiPicker && (
+              <div className="absolute left-0 bottom-12">
+                <EmojiPicker
+                  onSelect={(emoji) => {
+                    onAddEmoji(emoji);
+                    setShowEmojiPicker(false);
+                  }}
+                />
+              </div>
+            )}
+          </div>
 
           {/** Toggle voice recording mode. */}
           <Button

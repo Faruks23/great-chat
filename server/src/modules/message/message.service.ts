@@ -20,4 +20,14 @@ export class MessageService {
   static async create(data: MessageData) {
     return MessageModel.create(data);
   }
+
+  /**
+   * Mark messages in a conversation as read for all messages not sent by the reader.
+   */
+  static async markAsRead(conversationId: string, readerId: string) {
+    return MessageModel.updateMany(
+      { conversationId, senderId: { $ne: readerId }, status: { $ne: 'read' } },
+      { $set: { status: 'read' } }
+    );
+  }
 }

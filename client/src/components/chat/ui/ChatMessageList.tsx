@@ -133,8 +133,14 @@ export default function ChatMessageList({
                       <span>{message.time}</span>
                       {isMine && message.status ? (
                         <span className="inline-flex items-center gap-1">
-                          <Check className="h-3.5 w-3.5" />
-                          {message.status === 'read' ? 'Read' : 'Sent'}
+                          {message.status === 'read' ? (
+                            <span className="inline-flex items-center">
+                              <Check className="h-3.5 w-3.5 text-emerald-400 -mr-1" />
+                              <Check className="h-3.5 w-3.5 text-emerald-400" />
+                            </span>
+                          ) : (
+                            <Check className="h-3.5 w-3.5 text-zinc-400" />
+                          )}
                         </span>
                       ) : null}
                     </div>

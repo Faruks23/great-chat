@@ -115,11 +115,38 @@ const chatSlice = createSlice({
     setMessagesForConversation(state, action: PayloadAction<{ id: string; messages: ChatMessage[] }>) {
       state.messagesByConv[action.payload.id] = action.payload.messages;
     },
-    appendMessage(state, action: PayloadAction<{ conversationId: string; message: ChatMessage }>) {
+    appendMessage(state, action: PayloadAction<{ conversationId: string; message: ChatMessage & { tempId?: string } }>) {
       const { conversationId, message } = action.payload;
       const existingMessages = state.messagesByConv[conversationId] || [];
+      const incomingId = message.id ? String(message.id) : null;
+      const incomingTempId = (message as any).tempId ? String((message as any).tempId) : null;
+
+      // If the server echoed back a persisted message with a tempId, replace the
+      // local optimistic message that used that tempId instead of appending a duplicate.
+      if (incomingTempId) {
+        const replaced = existingMessages.some((existingMessage) => String(existingMessage.id) === incomingTempId);
+        if (replaced) {
+          state.messagesByConv[conversationId] = existingMessages.map((existingMessage) =>
+            String(existingMessage.id) === incomingTempId ? message : existingMessage
+          );
+          // update conversation metadata
+          const conversation = state.conversations.find((c) => c.id === conversationId);
+          if (conversation) {
+            conversation.lastMessage = message.text;
+            conversation.time = message.time;
+            if (message.from === 'them') {
+              conversation.unread += 1;
+            } else {
+              conversation.unread = 0;
+            }
+          }
+          return;
+        }
+      }
+
       const isDuplicate = existingMessages.some((existingMessage) => {
-        const sameId = existingMessage.id && message.id && existingMessage.id === message.id;
+        const existingId = existingMessage.id ? String(existingMessage.id) : null;
+        const sameId = existingId && incomingId && existingId === incomingId;
         const sameText = existingMessage.text === message.text && existingMessage.time === message.time;
         return sameId || sameText;
       });
@@ -158,6 +185,12 @@ const chatSlice = createSlice({
       if (conversation) {
         conversation.unread = 0;
       }
+    },
+    markMessagesReadForSender(state, action: PayloadAction<string>) {
+      const conversationId = action.payload;
+      state.messagesByConv[conversationId] = (state.messagesByConv[conversationId] || []).map((message) =>
+        message.from === 'me' ? { ...message, status: 'read' } : message
+      );
     },
     addReactionToMessage(state, action: PayloadAction<{ conversationId: string; messageId: number | string; emoji: string }>) {
       const { conversationId, messageId, emoji } = action.payload;
@@ -265,6 +298,7 @@ export const {
   appendMessage,
   setConversationOnline,
   markMessagesAsRead,
+  markMessagesReadForSender,
   addReactionToMessage,
   setActiveConversation,
   setDraft,

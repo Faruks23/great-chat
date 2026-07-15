@@ -108,8 +108,8 @@ export default function Page() {
         </button>
         {renderCallOverlay()}
         <OneToOneCall
-          remoteUserName="Sarah Johnson"
-          callDuration="02:45"
+          remoteUserName={callSession.remoteParticipantName ?? 'Remote Participant'}
+          callDuration={callSession.callDuration}
           localVideoRef={callSession.localVideoRef}
           remoteVideoRef={callSession.remoteVideoRef}
           connectionStatus={callSession.connectionStatus}
@@ -124,6 +124,8 @@ export default function Page() {
           onToggleMute={callSession.toggleMute}
           onToggleCamera={callSession.toggleCamera}
           onEndCall={handleCancelCall}
+          startScreenShare={callSession.startScreenShare}
+          stopScreenShare={callSession.stopScreenShare}
         />
       </div>
     );
@@ -141,7 +143,7 @@ export default function Page() {
         {renderCallOverlay()}
         <GroupCall
           groupName={searchParams.get('room') ? `Group call: ${searchParams.get('room')}` : 'Group call'}
-          callDuration="12:34"
+          callDuration={callSession.callDuration}
           localVideoRef={callSession.localVideoRef}
           remoteVideoRef={callSession.remoteVideoRef}
           connectionStatus={callSession.connectionStatus}
@@ -156,6 +158,8 @@ export default function Page() {
           onToggleMute={callSession.toggleMute}
           onToggleCamera={callSession.toggleCamera}
           onEndCall={handleCancelCall}
+          startScreenShare={callSession.startScreenShare}
+          stopScreenShare={callSession.stopScreenShare}
         />
       </div>
     );

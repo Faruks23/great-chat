@@ -19,11 +19,18 @@ export default function chatSocket(io: Server) {
       const recipients = Array.isArray(message.participants) ? message.participants : [];
       const recipientId = recipients.find((id: string) => id !== message.senderId);
 
-      socket.broadcast.to(`conversation:${message.conversationId}`).emit('chat:message', {
+      // Emit to the entire conversation room (including the sender) so the client
+      // that originated the optimistic message can receive the persisted message
+      // and reconcile the optimistic entry.
+      const emission = {
         ...payload,
+        // preserve client-side tempId when present so clients can match optimistic messages
+        tempId: message.tempId ?? undefined,
         from: 'them',
         senderId: payload.senderId ?? message.senderId,
-      });
+      };
+
+      io.to(`conversation:${message.conversationId}`).emit('chat:message', emission);
 
       if (recipientId) {
         const socketId = io.sockets.adapter.rooms.get(`user:${recipientId}`);
@@ -55,6 +62,18 @@ export default function chatSocket(io: Server) {
 
     socket.on('chat:typing', (payload) => {
       socket.broadcast.to(`conversation:${payload.conversationId}`).emit('chat:typing', payload);
+    });
+
+    // When a participant reads messages in a conversation, mark DB messages as read
+    // and notify other participants so UI can update read receipts.
+    socket.on('chat:read', async (payload: { conversationId: string; readerId: string }) => {
+      try {
+        const { conversationId, readerId } = payload;
+        await MessageService.markAsRead(conversationId, readerId);
+        io.to(`conversation:${conversationId}`).emit('chat:read', { conversationId, readerId });
+      } catch (err) {
+        console.error('Error handling chat:read', err);
+      }
     });
 
     socket.on('chat:leave', (conversationId: string) => {

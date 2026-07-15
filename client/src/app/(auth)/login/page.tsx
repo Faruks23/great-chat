@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { login } from '@/services/authService';
 import { saveAuthSession } from '@/lib/auth';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,6 +16,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const { refresh } = useAuth();
 
   const isPhone = useMemo(() => /^\+?[0-9\s-]{7,15}$/.test(identifier), [identifier]);
 
@@ -26,6 +28,12 @@ export default function LoginPage() {
     try {
       const response = await login({ ...(isPhone ? { phone: identifier } : { email: identifier }), password });
       saveAuthSession(response);
+      // update AuthProvider state immediately so protected routes recognize login
+      try {
+        refresh();
+      } catch (e) {
+        // ignore if provider not mounted
+      }
       router.push('/chat');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed.');

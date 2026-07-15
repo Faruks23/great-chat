@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAppDispatch } from '@/hooks/useAppDispatch';
 import socket from '@/lib/socket';
-import { appendMessage } from '@/store/chatSlice';
+import { appendMessage, markMessagesReadForSender } from '@/store/chatSlice';
 import type { ChatMessage } from '@/store/chatSlice';
 import { normalizeMessage } from '@/components/chat/utils/chat';
 import { playNotificationSound, playRingtoneSound, stopRingtoneSound } from '@/components/chat/utils/audio';
@@ -104,6 +104,17 @@ export function useChatSocket({ activeId, activeConversationName, user, setIsTyp
 
     socket.on('chat:message', handleIncomingMessage);
     socket.on('chat:typing', handleTyping);
+    socket.on('chat:read', ({ conversationId, readerId }: { conversationId: string; readerId: string }) => {
+      // If someone (the other participant) read messages in the active conversation,
+      // mark outgoing messages as read for the sender's UI.
+      if (conversationId === activeId) {
+        if (user?.id && readerId !== user.id) {
+          dispatch(markMessagesReadForSender(conversationId));
+        } else if (!user?.id) {
+          dispatch(markMessagesReadForSender(conversationId));
+        }
+      }
+    });
     socket.on('notification:receive', handleIncomingNotification);
     socket.on('call:incoming', handleIncomingCall);
 
@@ -111,6 +122,7 @@ export function useChatSocket({ activeId, activeConversationName, user, setIsTyp
       stopRingtoneSound();
       socket.off('chat:message', handleIncomingMessage);
       socket.off('chat:typing', handleTyping);
+      socket.off('chat:read');
       socket.off('notification:receive', handleIncomingNotification);
       socket.off('call:incoming', handleIncomingCall);
     };

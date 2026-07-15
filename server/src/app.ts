@@ -12,8 +12,13 @@ import morgan from 'morgan';
 dns.setServers(["8.8.8.8", "1.1.1.1"]);
 export function createApp() {
   const app = express();
+  const allowedOrigins = [process.env.CORS_ORIGIN, process.env.FRONTEND_URL, process.env.CLIENT_URL]
+    .filter((value): value is string => Boolean(value));
 
-  app.use(cors());
+  app.use(cors({
+    origin: allowedOrigins.length > 0 ? allowedOrigins : true,
+    credentials: true,
+  }));
   app.use(json());
   app.use(urlencoded({ extended: true }));
   app.use(morgan(function (tokens, req, res) {
@@ -29,6 +34,10 @@ export function createApp() {
 
   connectDatabase();
   initCloudinary();
+
+  app.get('/health', (_req, res) => {
+    res.status(200).json({ status: 'ok', service: 'great-chat-server' });
+  });
 
   registerRoutes(app);
 

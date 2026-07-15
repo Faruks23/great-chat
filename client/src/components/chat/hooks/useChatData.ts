@@ -30,6 +30,7 @@ import {
   setDraft,
   setMessagesForConversation,
 } from '@/store/chatSlice';
+import socket from '@/lib/socket';
 import { fetchConversationByUser, fetchConversations, fetchMessages } from '@/services/chatService';
 import { normalizeMessage } from '@/components/chat/utils/chat';
 import type { User } from '@/types';
@@ -47,6 +48,13 @@ export function useChatData(initialUser: User | null) {
   const [isConversationClosed, setIsConversationClosed] = useState(false);
   const [hasHydratedSelection, setHasHydratedSelection] = useState(false);
 
+  const normalizedParticipantId = participantId?.trim() && participantId !== 'undefined' && participantId !== 'null' ? participantId.trim() : null;
+  const normalizedConversationId = conversationId?.trim() && conversationId !== 'undefined' && conversationId !== 'null' ? conversationId.trim() : null;
+  const normalizedGroupId = groupId?.trim() && groupId !== 'undefined' && groupId !== 'null' ? groupId.trim() : null;
+  const normalizedActiveId = activeId?.trim() && activeId !== 'undefined' && activeId !== 'null' ? activeId.trim() : null;
+  const isSelfConversation = normalizedParticipantId && authUser?.id ? normalizedParticipantId === authUser.id : false;
+  const shouldFetchMessages = Boolean(isAuthenticated && authUser && normalizedActiveId);
+
   const conversationsQuery = useQuery({
     queryKey: ['conversations'],
     queryFn: fetchConversations,
@@ -63,15 +71,15 @@ export function useChatData(initialUser: User | null) {
   });
 
   const messagesQuery = useQuery({
-    queryKey: ['messages', activeId],
-    queryFn: () => fetchMessages(activeId),
-    enabled: Boolean(isAuthenticated && authUser && activeId),
+    queryKey: ['messages', normalizedActiveId],
+    queryFn: () => fetchMessages(normalizedActiveId!),
+    enabled: shouldFetchMessages,
   });
 
   const conversationByUserQuery = useQuery({
-    queryKey: ['conversationByUser', participantId],
-    queryFn: () => fetchConversationByUser(participantId ?? ''),
-    enabled: Boolean(isAuthenticated && authUser && participantId),
+    queryKey: ['conversationByUser', normalizedParticipantId],
+    queryFn: () => fetchConversationByUser(normalizedParticipantId ?? ''),
+    enabled: Boolean(isAuthenticated && authUser && normalizedParticipantId && !isSelfConversation),
   });
 
   useEffect(() => {
@@ -113,10 +121,10 @@ export function useChatData(initialUser: User | null) {
 
     dispatch(setConversations(merged));
 
-    const requestedConversation = conversationId
-      ? merged.find((conversation) => conversation.id === conversationId)
-      : groupId
-        ? merged.find((conversation) => conversation.groupId === groupId || conversation.id === groupId)
+    const requestedConversation = normalizedConversationId
+      ? merged.find((conversation) => conversation.id === normalizedConversationId)
+      : normalizedGroupId
+        ? merged.find((conversation) => conversation.groupId === normalizedGroupId || conversation.id === normalizedGroupId)
         : undefined;
 
     if (requestedConversation) {
@@ -131,7 +139,7 @@ export function useChatData(initialUser: User | null) {
     const storedActiveConversationId = getStoredActiveConversationId();
     const hasStoredActiveConversation = Boolean(storedActiveConversationId && merged.some((conversation) => conversation.id === storedActiveConversationId));
 
-    if (!foundActive && !participantId && !isConversationClosed && merged.length > 0 && !hasStoredActiveConversation) {
+    if (!foundActive && !normalizedParticipantId && !isConversationClosed && merged.length > 0 && !hasStoredActiveConversation) {
       dispatch(setActiveConversation(merged[0].id));
     }
   }, [activeId, conversationByUserQuery.isSuccess, conversationId, conversationsQuery.data, conversationsQuery.isSuccess, dispatch, groupId, groupsQuery.data, groupsQuery.isSuccess, isConversationClosed, participantId]);
@@ -143,7 +151,7 @@ export function useChatData(initialUser: User | null) {
   }, [activeId]);
 
   useEffect(() => {
-    if (!conversationId && !groupId) {
+    if (!normalizedConversationId && !normalizedGroupId) {
       if (conversationByUserQuery.isSuccess && conversationByUserQuery.data) {
         const conversation = conversationByUserQuery.data;
         if (!conversations.some((item) => item.id === conversation.id)) {
@@ -157,21 +165,40 @@ export function useChatData(initialUser: User | null) {
       return;
     }
 
-    if (conversationId && activeId !== conversationId) {
-      dispatch(setActiveConversation(conversationId));
+    if (normalizedConversationId && activeId !== normalizedConversationId) {
+      dispatch(setActiveConversation(normalizedConversationId));
       setIsConversationClosed(false);
     }
-  }, [activeId, conversationByUserQuery.data, conversationByUserQuery.isSuccess, conversationId, conversations, dispatch, groupId]);
+  }, [activeId, conversationByUserQuery.data, conversationByUserQuery.isSuccess, normalizedConversationId, conversations, dispatch, normalizedGroupId]);
 
   useEffect(() => {
     if (messagesQuery.data && activeId) {
+      // Normalize and dedupe incoming messages by id to avoid duplicate entries
+      const normalized = messagesQuery.data.map((message) => normalizeMessage(message, authUser?.id));
+      const seen = new Set<string>();
+      const unique: typeof normalized = [];
+      for (const msg of normalized) {
+        const key = String(msg.id);
+        if (!seen.has(key)) {
+          seen.add(key);
+          unique.push(msg);
+        }
+      }
+
       dispatch(
         setMessagesForConversation({
           id: activeId,
-          messages: messagesQuery.data.map((message) => normalizeMessage(message, authUser?.id)),
+          messages: unique,
         })
       );
       dispatch(markMessagesAsRead(activeId));
+      // Notify server/participants that the current user has read messages
+      try {
+        if (!socket.connected) socket.connect();
+        socket.emit('chat:read', { conversationId: activeId, readerId: authUser?.id });
+      } catch (err) {
+        // ignore socket errors silently
+      }
     }
   }, [activeId, authUser?.id, dispatch, messagesQuery.data]);
 

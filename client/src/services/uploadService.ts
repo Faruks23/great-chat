@@ -23,3 +23,18 @@ export async function uploadFile(formData: FormData, onProgress?: (progress: num
   });
   return response.data;
 }
+
+export type SaveCloudinaryAssetPayload = {
+  secure_url: string;
+  original_filename?: string;
+  public_id?: string;
+  resource_type?: string;
+  format?: string;
+  bytes?: number;
+  mime_type?: string;
+};
+
+export async function saveCloudinaryAsset(payload: SaveCloudinaryAssetPayload) {
+  const response = await api.post<UploadFileResponse>('/upload/cloudinary-save', payload);
+  return response.data;
+}

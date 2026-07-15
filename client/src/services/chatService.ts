@@ -17,8 +17,13 @@ export async function fetchConversations(): Promise<Conversation[]> {
 }
 
 export async function fetchMessages(conversationId: string): Promise<ChatMessage[]> {
+  if (!conversationId?.trim()) {
+    console.warn('fetchMessages called without a valid conversationId');
+    return [];
+  }
+
   const response = await api.get<ChatMessage[]>('/messages', {
-    params: { conversationId },
+    params: { conversationId: conversationId.trim() },
   });
   return response.data;
 }
