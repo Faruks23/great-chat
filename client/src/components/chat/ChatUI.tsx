@@ -17,7 +17,7 @@ import { useChatRoom } from '@/components/chat/hooks/useChatRoom';
 import ChatLayout from '@/components/chat/components/ChatLayout';
 import SuspenseBoundary from '@/components/ui/SuspenseBoundary';
 import { addReactionToMessage, appendMessage } from '@/store/chatSlice';
-import type { ChatMessage, MessageAttachment } from '@/store/chatSlice';
+import type { ChatMessage, Conversation, MessageAttachment } from '@/store/chatSlice';
 import type { User } from '@/types';
 
 export default function ChatUI() {
@@ -66,7 +66,7 @@ export default function ChatUI() {
   const [mounted, setMounted] = useState(false);
 
   const activeConversation = useMemo(
-    () => (activeId ? conversations.find((conversation) => conversation.id === activeId) : undefined),
+    () => (activeId ? conversations.find((conversation: Conversation) => conversation.id === activeId) : undefined),
     [activeId, conversations]
   );
 
@@ -209,7 +209,7 @@ export default function ChatUI() {
   };
 
   const handleStartChatWithFriend = async (friendId: string) => {
-    const existingConversation = conversations.find((c) => c.participants?.includes(friendId));
+    const existingConversation = conversations.find((c: Conversation) => c.participants?.includes(friendId));
     if (existingConversation) {
       handleSelectConversation(existingConversation.id);
       return;

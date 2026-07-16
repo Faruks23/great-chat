@@ -24,10 +24,10 @@ import { getSocket } from '@/lib/socket';
 interface OneToOneCallProps {
   remoteUserName?: string;
   callDuration?: string;
-  localVideoRef?: React.RefObject<HTMLVideoElement>;
-  remoteVideoRef?: React.RefObject<HTMLVideoElement>;
-  screenShareRef?: React.RefObject<HTMLVideoElement>;
-  remoteScreenShareRef?: React.RefObject<HTMLVideoElement>;
+  localVideoRef?: React.RefObject<HTMLVideoElement | null>;
+  remoteVideoRef?: React.RefObject<HTMLVideoElement | null>;
+  screenShareRef?: React.RefObject<HTMLVideoElement | null>;
+  remoteScreenShareRef?: React.RefObject<HTMLVideoElement | null>;
   peerConnection?: RTCPeerConnection | null;
   connectionStatus?: string;
   connectionState?: string;
@@ -125,7 +125,7 @@ export function OneToOneCall({
           setScreenShareStream(stream);
           stream.getVideoTracks()[0]?.addEventListener('ended', () => setScreenShareStream(null), { once: true });
         }
-        const socket = getSocket();        if (socket) {          socket.emit('screen:start', { userId: 'current-user-id', isSharing: true }); }
+        const socket = getSocket(); if (socket) { socket.emit('screen:start', { userId: 'current-user-id', isSharing: true }); }
         setIsScreenShareModalOpen(false);
       } else {
         console.warn('startScreenShare not provided by call session');
@@ -140,7 +140,7 @@ export function OneToOneCall({
       if (typeof stopScreenShare === 'function') {
         await stopScreenShare();
       }
-      const socket = getSocket();      if (socket) {        socket.emit('screen:stop', { userId: 'current-user-id', isSharing: false }); }
+      const socket = getSocket(); if (socket) { socket.emit('screen:stop', { userId: 'current-user-id', isSharing: false }); }
       setScreenShareStream(null);
     } catch (err) {
       console.error('Failed to stop screen sharing:', err);
@@ -148,7 +148,7 @@ export function OneToOneCall({
   };
 
   useEffect(() => {
-    const socket = getSocket();    if (!socket) return;       const handleRemoteScreenShare = (data: { userId: string; isSharing: boolean }) => {
+    const socket = getSocket(); if (!socket) return; const handleRemoteScreenShare = (data: { userId: string; isSharing: boolean }) => {
       if (!data.isSharing) {
         setRemoteScreenStream(null);
       }

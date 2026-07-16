@@ -154,7 +154,7 @@ export function useChatData(initialUser: User | null) {
     if (!normalizedConversationId && !normalizedGroupId) {
       if (conversationByUserQuery.isSuccess && conversationByUserQuery.data) {
         const conversation = conversationByUserQuery.data;
-        if (!conversations.some((item) => item.id === conversation.id)) {
+        if (!conversations.some((item: Conversation) => item.id === conversation.id)) {
           dispatch(setConversations([...conversations, conversation]));
         }
         if (activeId !== conversation.id) {
@@ -209,7 +209,7 @@ export function useChatData(initialUser: User | null) {
   };
 
   const handleSelectConversation = (id: string) => {
-    const conversation = conversations.find((item) => item.id === id);
+    const conversation = conversations.find((item: Conversation) => item.id === id);
     const nextParams = new URLSearchParams(searchParams.toString());
 
     if (conversation?.isGroup || conversation?.groupId) {
@@ -217,7 +217,7 @@ export function useChatData(initialUser: User | null) {
       nextParams.delete('conversationId');
       nextParams.set('groupId', conversation.groupId ?? id);
     } else {
-      const otherParticipantId = conversation?.participants?.find((participantIdValue) => participantIdValue !== authUser?.id);
+      const otherParticipantId = conversation?.participants?.find((participantIdValue: string) => participantIdValue !== authUser?.id);
       nextParams.delete('groupId');
       nextParams.delete('conversationId');
       if (otherParticipantId) {
@@ -236,7 +236,7 @@ export function useChatData(initialUser: User | null) {
   };
 
   const handleCreateConversation = (conversation: Conversation) => {
-    if (!conversations.some((item) => item.id === conversation.id)) {
+    if (!conversations.some((item: Conversation) => item.id === conversation.id)) {
       dispatch(setConversations([...conversations, conversation]));
     }
 
@@ -246,7 +246,7 @@ export function useChatData(initialUser: User | null) {
       nextParams.delete('conversationId');
       nextParams.set('groupId', conversation.groupId ?? conversation.id);
     } else {
-      const otherParticipantId = conversation.participants?.find((participantIdValue) => participantIdValue !== authUser?.id);
+      const otherParticipantId = conversation.participants?.find((participantIdValue: string) => participantIdValue !== authUser?.id);
       nextParams.delete('groupId');
       nextParams.delete('conversationId');
       if (otherParticipantId) {

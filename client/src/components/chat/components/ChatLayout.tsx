@@ -19,7 +19,7 @@ export type ChatLayoutProps = {
   isTyping: boolean;
   messagesQuery: UseQueryResult<ChatMessage[], Error>;
   draft: string;
-  textareaRef: RefObject<HTMLTextAreaElement>;
+  textareaRef: RefObject<HTMLTextAreaElement | null>;
   attachments: any[];
   isRecording: boolean;
   searchTerm: string;
@@ -101,13 +101,13 @@ export default function ChatLayout({
 }: ChatLayoutProps) {
   const chatState = useAppSelector((state) => state.chat);
   const activeConversation = useMemo(
-    () => (activeId ? chatState.conversations.find((conversation) => conversation.id === activeId) : undefined),
+    () => (activeId ? chatState.conversations.find((conversation: Conversation) => conversation.id === activeId) : undefined),
     [activeId, chatState.conversations]
   );
   const messages = activeConversation?.id ? chatState.messagesByConv[activeConversation.id] ?? [] : [];
   const filteredConversations = useMemo(
     () =>
-      chatState.conversations.filter((conversation) =>
+      chatState.conversations.filter((conversation: Conversation) =>
         conversation.name.toLowerCase().includes(query.toLowerCase()) || conversation.lastMessage.toLowerCase().includes(query.toLowerCase())
       ),
     [chatState.conversations, query]
@@ -115,8 +115,8 @@ export default function ChatLayout({
   const groupedMessages = useMemo(
     () =>
       messages
-        .filter((message) => (searchTerm ? message.text.toLowerCase().includes(searchTerm.toLowerCase()) : true))
-        .map((message, index) => {
+        .filter((message: ChatMessage) => (searchTerm ? message.text.toLowerCase().includes(searchTerm.toLowerCase()) : true))
+        .map((message: ChatMessage, index: number) => {
           const previous = messages[index - 1];
           const next = messages[index + 1];
           return {

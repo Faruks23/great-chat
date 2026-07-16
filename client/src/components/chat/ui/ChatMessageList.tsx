@@ -16,8 +16,8 @@ type ChatMessageListProps = {
   messages: ChatMessage[];
   isTyping: boolean;
   showScrollBtn: boolean;
-  scrollRef: React.RefObject<HTMLDivElement>;
-  bottomRef: React.RefObject<HTMLDivElement>;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
+  bottomRef: React.RefObject<HTMLDivElement | null>;
   handleScroll: () => void;
   scrollToBottom: () => void;
   messagesQuery: UseQueryResult<ChatMessage[], Error>;

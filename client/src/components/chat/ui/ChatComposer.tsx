@@ -11,7 +11,7 @@ type ChatComposerProps = {
   attachments: MessageAttachment[];
   isRecording: boolean;
   searchValue: string;
-  textareaRef: React.RefObject<HTMLTextAreaElement>;
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   onDraftChange: (value: string) => void;
   onKeyDown: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   onSend: () => void;

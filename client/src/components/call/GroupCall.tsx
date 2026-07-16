@@ -37,9 +37,9 @@ interface GroupCallProps {
   groupName?: string;
   members?: GroupMember[];
   callDuration?: string;
-  localVideoRef?: React.RefObject<HTMLVideoElement>;
-  remoteVideoRef?: React.RefObject<HTMLVideoElement>;
-  remoteScreenShareRef?: React.RefObject<HTMLVideoElement>;
+  localVideoRef?: React.RefObject<HTMLVideoElement | null>;
+  remoteVideoRef?: React.RefObject<HTMLVideoElement | null>;
+  remoteScreenShareRef?: React.RefObject<HTMLVideoElement | null>;
   peerConnection?: RTCPeerConnection | null;
   connectionStatus?: string;
   connectionState?: string;
@@ -207,7 +207,7 @@ export function GroupCall({
   };
 
   useEffect(() => {
-    const socket = getSocket();    if (!socket) return;       const handleRemoteScreenShare = (data: { userId: string; isSharing: boolean }) => {
+    const socket = getSocket(); if (!socket) return; const handleRemoteScreenShare = (data: { userId: string; isSharing: boolean }) => {
       if (!data.isSharing) {
         setRemoteScreenStream(null);
         // clear seen remote screen track ids when sharing stops
