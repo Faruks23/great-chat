@@ -186,7 +186,7 @@ export function OneToOneCall({
   }, [peerConnection, remoteScreenShareRef, remoteScreenStream]);
 
   return (
-    <div className="relative flex h-screen w-full flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800">
+    <div className="relative flex h-screen w-full flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800 group">
       {/* Background Video Grid */}
       <div className="absolute inset-0 opacity-5">
         <div className="grid grid-cols-4 gap-4 w-full h-full p-4">
@@ -243,12 +243,12 @@ export function OneToOneCall({
           )}
 
           {/* User Info */}
-          <div className="absolute left-0 right-0 top-8 z-10 flex flex-col items-center gap-2 text-white group">
+          <div className="absolute left-0 right-0 top-8 z-10 flex flex-col items-center gap-2 text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100 pointer-events-none">
             <h2 className="text-balance text-3xl font-bold md:text-4xl">{remoteUserName}</h2>
             <div className="flex items-center gap-2 text-lg text-slate-200 md:text-xl">
               <div className={`h-2 w-2 rounded-full ${connectionState === 'connected' ? 'animate-pulse bg-emerald-400' : 'bg-amber-400'}`} />
               <span>{connectionStatus}</span>
-              <span className="ml-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">• {callDuration}</span>
+              <span className="ml-2">• {callDuration}</span>
             </div>
             <p className={`text-sm ${statusTone}`}>{statusMessage}</p>
             {permissionError ? <p className="max-w-md text-center text-sm text-red-300">{permissionError}</p> : null}

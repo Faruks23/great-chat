@@ -92,7 +92,8 @@ export default function ChatHeader({ active, onToggleSidebar, onCloseConversatio
     }
 
     const autoParams = `&auto=1&type=${encodeURIComponent(callType)}`;
-    window.location.assign(`/calls?room=${encodeURIComponent(active.id)}&mode=${mode}${autoParams}`);
+    const nameParam = active.name ? `&name=${encodeURIComponent(active.name)}` : '';
+    window.location.assign(`/calls?room=${encodeURIComponent(active.id)}&mode=${mode}${autoParams}${nameParam}`);
   };
 
   return (
