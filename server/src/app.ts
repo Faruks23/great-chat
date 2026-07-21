@@ -21,17 +21,18 @@ export function createApp() {
   }));
   app.use(json());
   app.use(urlencoded({ extended: true }));
-  app.use(morgan(function (tokens, req, res) {
-    return [
-      tokens.method(req, res),
-      tokens.url(req, res),
-      tokens.status(req, res),
-      tokens.res(req, res, 'content-length'), '-',
-      tokens['response-time'](req, res), 'ms',
-      tokens['remote-addr'](req, res),
-    ].join(' ')
-  }));
-
+  app.use(
+    morgan((tokens, req, res) => {
+      return [
+        `📥 ${tokens.method(req, res)}`,
+        tokens.url(req, res),
+        `| ${tokens.status(req, res)}`,
+        `| ${tokens["response-time"](req, res)} ms`,
+        `| ${tokens.res(req, res, "content-length") || 0} B`,
+        `| IP: ${tokens["remote-addr"](req, res)}`,
+      ].join(" ");
+    })
+  );
   connectDatabase();
   initCloudinary();
 
