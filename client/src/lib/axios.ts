@@ -1,5 +1,9 @@
 import axios from 'axios';
-import { getAuthToken, saveAuthSession, clearAuthSession, isTokenExpired } from '@/lib/auth';
+import {
+  getAuthToken,
+  saveAuthSession,
+  clearAuthSession,
+} from '@/lib/auth';
 import { refreshSession } from '@/services/authService';
 
 const api = axios.create({
@@ -11,57 +15,95 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
   const token = getAuthToken();
+
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
   return config;
 });
 
 let isRefreshing = false;
-let refreshPromise: Promise<void> | null = null;
+let refreshPromise: Promise<string | null> | null = null;
 
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    if (!originalRequest || !error.response || error.response.status !== 401) {
+    // Network error
+    if (!error.response) {
       return Promise.reject(error);
     }
 
-    if (isRefreshing) {
-      await refreshPromise;
-      return api(originalRequest);
+    // Not Unauthorized
+    if (error.response.status !== 401) {
+      return Promise.reject(error);
     }
 
-    isRefreshing = true;
-    refreshPromise = (async () => {
-      const token = getAuthToken();
-      if (!token || isTokenExpired(token)) {
-        clearAuthSession();
-        window.location.href = '/login';
-        return;
+    // Don't retry twice
+    if (originalRequest._retry) {
+      clearAuthSession();
+
+      if (window.location.pathname !== '/login') {
+        window.location.replace('/login');
       }
 
-      try {
-        const response = await refreshSession(token);
-        saveAuthSession(response);
-        originalRequest.headers.Authorization = `Bearer ${response.token}`;
-      } catch {
-        clearAuthSession();
-        window.location.href = '/login';
-      }
-    })();
+      return Promise.reject(error);
+    }
+
+    originalRequest._retry = true;
 
     try {
-      await refreshPromise;
-      return api(originalRequest);
-    } finally {
+      if (!isRefreshing) {
+        isRefreshing = true;
+
+        refreshPromise = (async () => {
+          const token = getAuthToken();
+
+          if (!token) {
+            return null;
+          }
+
+          const response = await refreshSession(token);
+
+          saveAuthSession(response);
+
+          return response.token;
+        })();
+      }
+
+      const newToken = await refreshPromise;
+
       isRefreshing = false;
       refreshPromise = null;
+
+      if (!newToken) {
+        clearAuthSession();
+
+        if (window.location.pathname !== '/login') {
+          window.location.replace('/login');
+        }
+
+        return Promise.reject(error);
+      }
+
+      originalRequest.headers.Authorization = `Bearer ${newToken}`;
+
+      return api(originalRequest);
+    } catch (err) {
+      isRefreshing = false;
+      refreshPromise = null;
+
+      clearAuthSession();
+
+      if (window.location.pathname !== '/login') {
+        window.location.replace('/login');
+      }
+
+      return Promise.reject(err);
     }
   }
 );
 
 export default api;
-
