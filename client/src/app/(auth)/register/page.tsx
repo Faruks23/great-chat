@@ -50,12 +50,11 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-100 px-4 py-10 dark:bg-zinc-950">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Create your account</CardTitle>
-          <CardDescription>Register a new account to start chatting.</CardDescription>
-        </CardHeader>
+    <Card className="w-full">
+      <CardHeader>
+        <CardTitle>Create your account</CardTitle>
+        <CardDescription>Register a new account to start chatting.</CardDescription>
+      </CardHeader>
 
         <form className="space-y-5" onSubmit={handleSubmit}>
           <div className="space-y-2">
@@ -98,6 +97,5 @@ export default function RegisterPage() {
           </a>
         </div>
       </Card>
-    </div>
   );
 }

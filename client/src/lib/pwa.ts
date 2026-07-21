@@ -1,3 +1,35 @@
+export interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{
+    outcome: 'accepted' | 'dismissed';
+    platform: string;
+  }>;
+}
+
+export type InstallPlatform = 'ios' | 'android' | 'desktop' | 'unknown';
+
+export function getInstallPlatform(): InstallPlatform {
+  if (typeof window === 'undefined') return 'unknown';
+
+  const ua = navigator.userAgent;
+  const isIos =
+    /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+  if (isIos) return 'ios';
+  if (/Android/.test(ua)) return 'android';
+  return 'desktop';
+}
+
+export function isAppInstalled(): boolean {
+  if (typeof window === 'undefined') return false;
+
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.matchMedia('(display-mode: fullscreen)').matches ||
+    (window.navigator as Navigator & { standalone?: boolean }).standalone === true
+  );
+}
+
 export const registerServiceWorker = async () => {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
 

@@ -1,61 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { InstallAppButton } from '@/components/InstallAppButton';
 import { getAuthToken } from '@/lib/auth';
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{
-    outcome: 'accepted' | 'dismissed';
-    platform: string;
-  }>;
-}
 
 export default function HomePage() {
   const router = useRouter();
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [installStatus, setInstallStatus] = useState<'ready' | 'installed' | 'dismissed' | 'hidden'>('hidden');
 
   useEffect(() => {
     const token = getAuthToken();
     if (token) router.replace('/chat');
   }, [router]);
-
-  useEffect(() => {
-    const handleBeforeInstallPrompt = (event: Event) => {
-      event.preventDefault();
-      setInstallPrompt(event as BeforeInstallPromptEvent);
-      setInstallStatus('ready');
-    };
-
-    const handleAppInstalled = () => {
-      setInstallStatus('installed');
-      setInstallPrompt(null);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
-    };
-  }, []);
-
-  const handleInstall = async () => {
-    if (!installPrompt) return;
-
-    await installPrompt.prompt();
-    const choice = await installPrompt.userChoice;
-    if (choice.outcome === 'accepted') {
-      setInstallStatus('installed');
-      setInstallPrompt(null);
-    } else {
-      setInstallStatus('dismissed');
-    }
-  };
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white overflow-hidden">
@@ -77,7 +34,7 @@ export default function HomePage() {
               Create teams, send messages instantly, and manage your profile with a smooth, elegant experience.
             </p>
 
-            <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+            <div className="mt-8 flex flex-col sm:flex-row flex-wrap gap-4 justify-center lg:justify-start">
               <Link
                 href="/login"
                 className="rounded-xl bg-white px-6 py-3 font-semibold text-slate-900 transition hover:scale-[1.02] hover:bg-slate-100"
@@ -90,23 +47,11 @@ export default function HomePage() {
               >
                 Register
               </Link>
-              {installStatus === 'ready' ? (
-                <button
-                  type="button"
-                  onClick={handleInstall}
-                  className="rounded-xl bg-cyan-500 px-6 py-3 font-semibold text-slate-950 transition hover:bg-cyan-400"
-                >
-                  Install app
-                </button>
-              ) : installStatus === 'installed' ? (
-                <div className="rounded-xl border border-white/15 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur">
-                  App installed
-                </div>
-              ) : null}
+              <InstallAppButton />
             </div>
-            {installStatus === 'dismissed' && (
-              <p className="mt-3 text-sm text-cyan-200">Install prompt was dismissed. You can install from the browser menu anytime.</p>
-            )}
+            <p className="mt-4 text-sm text-white/60">
+              Install on your phone or computer for quick access from your home screen or desktop.
+            </p>
           </section>
 
           <section className="relative">

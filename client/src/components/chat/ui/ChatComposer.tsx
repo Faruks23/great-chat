@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useState, useEffect } from 'react';
-import { Mic, Paperclip, Search, Send, X } from 'lucide-react';
+import { Mic, Paperclip, Plus, Search, Send, X } from 'lucide-react';
 import EmojiPicker from './EmojiPicker';
 import { Button } from '@/components/ui/button';
 import type { MessageAttachment } from '@/store/chatSlice';
@@ -23,6 +23,9 @@ type ChatComposerProps = {
   replyTo?: { id: number | string; text: string; sender: 'me' | 'them'; name?: string };
   onCancelReply?: () => void;
 };
+
+const iconButtonClass =
+  'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-zinc-200 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800';
 
 /**
  * ChatComposer renders the bottom input area for drafting and sending messages.
@@ -47,7 +50,6 @@ export default function ChatComposer({
 }: ChatComposerProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const emojiBtnRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     const handler = () => setShowEmojiPicker(false);
@@ -55,15 +57,35 @@ export default function ChatComposer({
     return () => window.removeEventListener('emojiPicker:close', handler as EventListener);
   }, []);
 
+  const actionsRef = useRef<HTMLDivElement | null>(null);
+  const [showActions, setShowActions] = useState(false);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        actionsRef.current &&
+        !actionsRef.current.contains(event.target as Node)
+      ) {
+        setShowActions(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   return (
-    <div className="sticky bottom-0 left-0 right-0 z-20 border-t border-zinc-200 bg-white/95 px-4 py-3 backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-950/95 md:static md:px-4 md:py-4">
+    <div className="sticky bottom-0 left-0 right-0 z-20 border-t border-zinc-200 bg-white/95 px-3 py-3 backdrop-blur-sm safe-bottom dark:border-zinc-800 dark:bg-zinc-950/95 sm:px-4 md:static md:px-4 md:py-4">
       {replyTo ? (
-        <div className="mb-2 flex items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-500/10 dark:text-emerald-300">
-          <div>
+        <div className="mb-2 flex items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-500/10 dark:text-emerald-300">
+          <div className="min-w-0">
             <p className="text-[11px] uppercase tracking-[0.2em]">Replying to {replyTo.name ?? 'message'}</p>
             <p className="truncate">{replyTo.text}</p>
           </div>
-          <button type="button" onClick={onCancelReply} className="rounded-full p-1 hover:bg-emerald-100 dark:hover:bg-emerald-500/20">
+          <button type="button" onClick={onCancelReply} className="shrink-0 rounded-full p-1 hover:bg-emerald-100 dark:hover:bg-emerald-500/20">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -94,7 +116,7 @@ export default function ChatComposer({
                   </div>
                   <button
                     type="button"
-                    className="rounded-full p-1 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                    className="shrink-0 rounded-full p-1 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
                     onClick={() => onRemoveAttachment(index)}
                   >
                     <X className="h-4 w-4" />
@@ -115,45 +137,70 @@ export default function ChatComposer({
         </div>
       ) : null}
 
-      <div className="flex gap-5 md:gap-3 flex-row !justify-between items-center">
-        <div className="flex items-center gap-2">
-          {/** File attachment button, hidden file input triggers the browser dialog. */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            className="hidden"
-            multiple
-            onChange={(event) => {
-              const files = event.target.files;
-              if (files) {
-                Array.from(files).forEach((file) => void onAttachFile(file));
-              }
-              if (fileInputRef.current) {
-                fileInputRef.current.value = '';
-              }
-            }}
+      <div className="flex flex-col-reverse md:flex-row gap-2 ">
+        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 
+      px-3 py-2 shadow-sm transition focus-within:border-emerald-500
+       focus-within:ring-2 focus-within:ring-emerald-100
+        dark:border-zinc-700 dark:bg-zinc-950
+         dark:focus-within:border-emerald-400
+          dark:focus-within:ring-emerald-500/20">
+          <textarea
+            ref={textareaRef}
+            value={draft}
+            onChange={(event) => onDraftChange(event.target.value)}
+            onKeyDown={onKeyDown}
+            placeholder="Type a message"
+            rows={1}
+            className="max-h-32 min-h-[2.75rem] w-full resize-none bg-transparent text-sm leading-6 text-zinc-900 outline-none dark:text-zinc-100"
           />
+        </div>
+
+        <div
+          ref={actionsRef}
+          className="relative flex items-center gap-2"
+        >
+          {/* Plus Button */}
           <Button
             variant="ghost"
-            className="inline-flex h-8 md:h-10 w-8 md:w-10 min-w-[2.5rem] items-center justify-center rounded-full border border-zinc-200 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-            aria-label="Attach file"
-            onClick={() => fileInputRef.current?.click()}
+            className="h-10 w-10 rounded-full border border-zinc-200 bg-white shadow-sm transition hover:bg-zinc-100"
+            onClick={() => setShowActions((prev) => !prev)}
           >
-            <Paperclip className="h-4 w-4" />
+            <Plus
+              className={`h-5 w-5 transition-transform duration-300 ${showActions ? "rotate-45" : ""
+                }`}
+            />
           </Button>
 
-          {/** Add a quick emoji to the draft text. */}
-          <div className="relative">
+          {/* Actions */}
+          <div
+            className={`absolute bottom-0 left-12 flex items-center gap-2 rounded-full bg-white p-1 shadow-xl transition-all duration-300 dark:bg-zinc-900
+
+      ${showActions
+                ? "translate-x-0 scale-100 opacity-100"
+                : "-translate-x-4 scale-95 opacity-0 pointer-events-none"
+              }
+    `}
+          >
+            {/* Attachment */}
             <Button
               variant="ghost"
-              className="inline-flex h-10 w-10 min-w-[2.5rem] items-center justify-center rounded-full border border-zinc-200 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-              aria-label="Open emoji picker"
+              className={iconButtonClass}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Paperclip className="h-4 w-4" />
+            </Button>
+
+            {/* Emoji */}
+            <Button
+              variant="ghost"
+              className={iconButtonClass}
               onClick={() => setShowEmojiPicker((s) => !s)}
             >
-              <span className="text-lg">😊</span>
+              😊
             </Button>
+
             {showEmojiPicker && (
-              <div className="absolute left-0 bottom-12">
+              <div className="absolute bottom-14 left-12 z-50">
                 <EmojiPicker
                   onSelect={(emoji) => {
                     onAddEmoji(emoji);
@@ -162,52 +209,25 @@ export default function ChatComposer({
                 />
               </div>
             )}
-          </div>
 
-          {/** Toggle voice recording mode. */}
-          <Button
-            variant="ghost"
-            className="inline-flex h-10 w-10 min-w-[2.5rem] items-center justify-center rounded-full border border-zinc-200 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-            aria-label={isRecording ? 'Stop recording' : 'Record voice message'}
-            onClick={onToggleRecording}
-          >
-            <Mic className="h-4 w-4" />
-          </Button>
-
-          {/** Toggle the search field or clear it if already active. */}
-          <Button
-            variant="ghost"
-            className="inline-flex h-10 w-10 min-w-[2.5rem] items-center justify-center rounded-full border border-zinc-200 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-            aria-label="Search messages"
-            onClick={() => onSearchChange(searchValue === '' ? 'search' : '')}
-          >
-            <Search className="h-4 w-4" />
-          </Button>
-        </div>
-
-        <div className="flex flex-row gap-2 flex-1 items-center">
-          <div className="min-h-[2.5rem] rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-2 shadow-sm transition focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-100 dark:border-zinc-700 dark:bg-zinc-950 dark:focus-within:border-emerald-400 dark:focus-within:ring-emerald-500/20">
-            {/** The actual message input textarea. */}
-            <textarea
-              ref={textareaRef}
-              value={draft}
-              onChange={(event) => onDraftChange(event.target.value)}
-              onKeyDown={onKeyDown}
-              placeholder="Type a message"
-              rows={1}
-              className="max-h-9 md:min-h-[2rem] w-full resize-none bg-transparent text-sm text-zinc-900 outline-none dark:text-zinc-100"
-            />
-          </div>
-          <div className="flex justify-end">
-            {/** Send button becomes enabled when there is draft text. */}
+            {/* Mic */}
             <Button
-              type="button"
-              onClick={onSend}
-              disabled={(!draft.trim() && attachments.length === 0) || attachments.some((attachment) => attachment.isUploading)}
-              className="inline-flex h-10 w-10 min-w-[2.5rem] items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-zinc-600"
-              aria-label="Send message"
+              variant="ghost"
+              className={iconButtonClass}
+              onClick={onToggleRecording}
             >
-              <Send className="h-4 w-4" />
+              <Mic className="h-4 w-4" />
+            </Button>
+
+            {/* Search */}
+            <Button
+              variant="ghost"
+              className={iconButtonClass}
+              onClick={() =>
+                onSearchChange(searchValue === "" ? "search" : "")
+              }
+            >
+              <Search className="h-4 w-4" />
             </Button>
           </div>
         </div>

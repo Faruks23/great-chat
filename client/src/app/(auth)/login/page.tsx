@@ -43,12 +43,11 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-100 px-4 py-10 dark:bg-zinc-950">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Welcome back</CardTitle>
-          <CardDescription>Sign in to continue to Great Chat.</CardDescription>
-        </CardHeader>
+    <Card className="w-full">
+      <CardHeader>
+        <CardTitle>Welcome back</CardTitle>
+        <CardDescription>Sign in to continue to Great Chat.</CardDescription>
+      </CardHeader>
 
         <form className="space-y-5" onSubmit={handleSubmit}>
           <div className="space-y-2">
@@ -88,6 +87,5 @@ export default function LoginPage() {
           </a>
         </div>
       </Card>
-    </div>
   );
 }
