@@ -125,10 +125,12 @@ export default function AddUserChatModal({ open, currentUserId, onClose, onFrien
           ) : null}
 
           <div className="flex flex-wrap items-center gap-3">
-            <Button variant="outline" onClick={handleSearch} disabled={!query.trim() || addFriendMutation.isPending}>
+            <Button className=' p-3 rounded-md shadow-md' variant="outline" onClick={handleSearch} disabled={!query.trim() || addFriendMutation.isPending}>
               Search
             </Button>
             <Button
+              variant='outline'
+              className='p-3 rounded-md shadow-md'
               onClick={handleAddFriend}
               disabled={!searchResult || addFriendMutation.isPending}
             >
