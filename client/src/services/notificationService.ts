@@ -5,9 +5,24 @@ export async function getVapidPublicKey(): Promise<{ publicKey: string }> {
   return res.data;
 }
 
-export async function registerPushSubscription(subscription: PushSubscription) {
-  const res = await api.post('/notifications/subscribe', subscription);
-  return res.data;
+export async function registerPushSubscription(
+  subscription: PushSubscription
+) {
+  try {
+    const { data } = await api.post(
+      "/notifications/subscribe",
+      subscription.toJSON()
+    );
+
+    return data;
+  } catch (error: any) {
+    if (error.response?.status === 401) {
+      console.warn("Push skipped");
+      return null;
+    }
+
+    throw error;
+  }
 }
 
 export async function broadcastTest(payload: any) {

@@ -1,15 +1,16 @@
-import axios from 'axios';
+import axios from "axios";
 import {
   getAuthToken,
   saveAuthSession,
   clearAuthSession,
-} from '@/lib/auth';
-import { refreshSession } from '@/services/authService';
+  isTokenExpired,
+} from "@/lib/auth";
+import { refreshSession } from "@/services/authService";
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api',
+  baseURL: process.env.NEXT_PUBLIC_API_URL,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
@@ -23,45 +24,30 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-let isRefreshing = false;
 let refreshPromise: Promise<string | null> | null = null;
 
 api.interceptors.response.use(
-  (response) => response,
+  (res) => res,
+
   async (error) => {
     const originalRequest = error.config;
 
-    // Network error
-    if (!error.response) {
-      return Promise.reject(error);
-    }
-
-    // Not Unauthorized
-    if (error.response.status !== 401) {
-      return Promise.reject(error);
-    }
-
-    // Don't retry twice
-    if (originalRequest._retry) {
-      clearAuthSession();
-
-      if (window.location.pathname !== '/login') {
-        window.location.replace('/login');
-      }
-
+    if (
+      error.response?.status !== 401 ||
+      originalRequest._retry
+    ) {
       return Promise.reject(error);
     }
 
     originalRequest._retry = true;
 
-    try {
-      if (!isRefreshing) {
-        isRefreshing = true;
-
-        refreshPromise = (async () => {
+    if (!refreshPromise) {
+      refreshPromise = (async () => {
+        try {
           const token = getAuthToken();
 
-          if (!token) {
+          if (!token || isTokenExpired(token)) {
+            clearAuthSession();
             return null;
           }
 
@@ -70,39 +56,25 @@ api.interceptors.response.use(
           saveAuthSession(response);
 
           return response.token;
-        })();
-      }
-
-      const newToken = await refreshPromise;
-
-      isRefreshing = false;
-      refreshPromise = null;
-
-      if (!newToken) {
-        clearAuthSession();
-
-        if (window.location.pathname !== '/login') {
-          window.location.replace('/login');
+        } catch {
+          clearAuthSession();
+          return null;
+        } finally {
+          refreshPromise = null;
         }
-
-        return Promise.reject(error);
-      }
-
-      originalRequest.headers.Authorization = `Bearer ${newToken}`;
-
-      return api(originalRequest);
-    } catch (err) {
-      isRefreshing = false;
-      refreshPromise = null;
-
-      clearAuthSession();
-
-      if (window.location.pathname !== '/login') {
-        window.location.replace('/login');
-      }
-
-      return Promise.reject(err);
+      })();
     }
+
+    const newToken = await refreshPromise;
+
+    if (!newToken) {
+      return Promise.reject(error);
+    }
+
+    originalRequest.headers.Authorization =
+      `Bearer ${newToken}`;
+
+    return api(originalRequest);
   }
 );
 

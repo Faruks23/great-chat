@@ -119,7 +119,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const syncPresence = () => {
-      if (!user?.id) return;
+      if (!getAuthToken() && !user.id) return;
+      // if (!user?.id) return;
       socket.emit('presence:update', { id: user.id, online: true });
       socket.emit('presence:request', { id: user.id });
     };
@@ -168,7 +169,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [dispatch, user, queryClient]);
 
   const token = useMemo(() => getAuthToken(), [user]);
-  const isAuthenticated = Boolean(token && (user || !isReady));
+  // const isAuthenticated = Boolean(token && (user || !isReady));
+  const isAuthenticated =
+    Boolean(token && user);
 
   const logout = () => {
     clearAuthSession();

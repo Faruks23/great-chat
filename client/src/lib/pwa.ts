@@ -31,22 +31,58 @@ export function isAppInstalled(): boolean {
 }
 
 export const registerServiceWorker = async () => {
-  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
+  if (typeof window === 'undefined') return;
 
+  if (!('serviceWorker' in navigator)) {
+    console.warn('Service Worker is not supported.');
+    return;
+  }
+
+  // Development → Remove all service workers
   if (process.env.NODE_ENV !== 'production') {
     try {
       const registrations = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(registrations.map((registration) => registration.unregister()));
-    } catch (error) {
-      console.warn('Service worker cleanup failed', error);
+
+      await Promise.all(
+        registrations.map((registration) => registration.unregister())
+      );
+
+      console.log('Development Service Workers removed.');
+    } catch (err) {
+      console.warn('Failed to remove service workers', err);
     }
+
     return;
   }
 
   try {
-    await navigator.serviceWorker.register('/sw.js');
-  } catch (error) {
-    console.error('Service worker registration failed', error);
+    // Wait until page fully loaded
+    await new Promise((resolve) => {
+      if (document.readyState === 'complete') {
+        resolve(true);
+      } else {
+        window.addEventListener('load', () => resolve(true), { once: true });
+      }
+    });
+
+    // Don't register twice
+    const existing = await navigator.serviceWorker.getRegistration('/');
+
+    if (existing) {
+      console.log('Service Worker already registered.');
+      return existing;
+    }
+
+    const registration = await navigator.serviceWorker.register('/sw.js', {
+      scope: '/',
+    });
+
+    console.log('Service Worker registered:', registration.scope);
+
+    return registration;
+  } catch (err) {
+    console.error('Service Worker registration failed:', err);
+    return null;
   }
 };
 
@@ -90,38 +126,95 @@ function urlBase64ToUint8Array(base64String: string) {
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api';
-
 export const subscribeToPush = async () => {
-  if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) return null;
-  try {
-    const res = await fetch(`${API_BASE}/notifications/vapidPublicKey`);
-    const data = await res.json();
-    const publicKey = data.publicKey as string;
-    const registration = await navigator.serviceWorker.ready;
-    const subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(publicKey),
-    });
+  if (typeof window === 'undefined') return null;
 
-    // use app api client to ensure auth headers are included
-    try {
-      const { registerPushSubscription } = await import('@/services/notificationService');
-      await registerPushSubscription(subscription as unknown as PushSubscription);
-    } catch (e) {
-      // fallback to fetch if api client not available
-      await fetch(`${API_BASE}/notifications/subscribe`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(subscription),
+  if (!('serviceWorker' in navigator)) {
+    console.warn('Service Worker is not supported.');
+    return null;
+  }
+
+  if (!('PushManager' in window)) {
+    console.warn('Push API is not supported.');
+    return null;
+  }
+
+  // Push requires HTTPS (except localhost)
+  if (
+    location.protocol !== 'https:' &&
+    location.hostname !== 'localhost'
+  ) {
+    console.warn('Push notifications require HTTPS.');
+    return null;
+  }
+
+  // Notification permission
+  if (!('Notification' in window)) return null;
+
+  if (Notification.permission === 'denied') {
+    console.warn('Notification permission denied.');
+    return null;
+  }
+
+  if (Notification.permission === 'default') {
+    const permission = await Notification.requestPermission();
+
+    if (permission !== 'granted') {
+      console.warn('Notification permission not granted.');
+      return null;
+    }
+  }
+
+  try {
+    // Wait until Service Worker is active
+    const registration = await navigator.serviceWorker.ready;
+
+    let subscription =
+      await registration.pushManager.getSubscription();
+
+    // Get VAPID key
+    const response = await fetch(
+      `${API_BASE}/notifications/vapidPublicKey`,
+      {
+        cache: 'no-store',
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch VAPID public key');
+    }
+
+    const { publicKey } = await response.json();
+
+    if (!publicKey) {
+      throw new Error('Invalid VAPID public key');
+    }
+
+    // Subscribe only if not already subscribed
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey),
       });
     }
+
+    // Always sync with server
+    try {
+      const { registerPushSubscription } = await import(
+        '@/services/notificationService'
+      );
+
+      await registerPushSubscription(subscription);
+    } catch (err) {
+      console.error('Server registration failed', err);
+    }
+
     return subscription;
-  } catch (error) {
-    console.error('Failed to subscribe to push', error);
+  } catch (err) {
+    console.error('Push subscription failed:', err);
     return null;
   }
 };
-
 export const unsubscribeFromPush = async () => {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) return false;
   try {
