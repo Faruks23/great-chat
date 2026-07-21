@@ -16,7 +16,7 @@ export function createApp() {
     .filter((value): value is string => Boolean(value));
 
   app.use(cors({
-    origin: allowedOrigins.length > 0 ? allowedOrigins : true,
+    origin:'https://great-chat-swart.vercel.app' ,
     credentials: true,
   }));
   app.use(json());
