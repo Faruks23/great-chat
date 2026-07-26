@@ -3,6 +3,12 @@ import type { Metadata, Viewport } from 'next';
 import { Providers } from '@/providers/Providers';
 import ServiceWorker from '@/components/ServiceWorker';
 
+import { Geist } from "next/font/google";
+
+const geist = Geist({
+  subsets: ["latin"],
+  variable: "--font-geist",
+});
 export const metadata: Metadata = {
   title: 'Great Chat',
   description: 'A modern chat application.',
@@ -27,12 +33,12 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning  className={geist.variable}>
       <head>
         <link rel="manifest" href="/manifest.webmanifest" />
         <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
       </head>
-      <body className="safe-x">
+      <body className="safe-x font-sans">
          <ServiceWorker></ServiceWorker>
         <Providers>{children}</Providers>
       </body>
