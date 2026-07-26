@@ -14,6 +14,9 @@ export type Conversation = {
   unread: number;
   online: boolean;
   lastSeen?: string;
+  type?:string;
+  favorite?:boolean;
+  archived?:boolean;
 };
 
 export type MessageAttachment = {

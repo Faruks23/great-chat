@@ -41,11 +41,13 @@ export default function ChatAvatar({
   online,
   lastSeen,
   size = 40,
+  src
 }: {
   name: string;
   online?: boolean;
   lastSeen?: string | null;
   size?: number;
+    src?: string;
 }) {
   const short = lastSeen ? timeAgoShort(lastSeen) : undefined;
   const long = lastSeen ? timeAgoLong(lastSeen) : undefined;
