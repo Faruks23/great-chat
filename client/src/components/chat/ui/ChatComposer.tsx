@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useRef, useState, useEffect } from 'react';
-import { Mic, Paperclip, Plus, Search, Send, X } from 'lucide-react';
-import EmojiPicker from './EmojiPicker';
+import { Mic, Paperclip, Plus, Search, Send, SendIcon, X } from 'lucide-react';
+// import EmojiPicker from './EmojiPicker';
 import { Button } from '@/components/ui/button';
 import type { MessageAttachment } from '@/store/chatSlice';
+import EmojiPicker from 'emoji-picker-react';
 
 type ChatComposerProps = {
   draft: string;
@@ -25,7 +26,7 @@ type ChatComposerProps = {
 };
 
 const iconButtonClass =
-  'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-zinc-200 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800';
+  'inline-flex p-1 shrink-0 items-center justify-center rounded-full border border-zinc-200 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800';
 
 /**
  * ChatComposer renders the bottom input area for drafting and sending messages.
@@ -137,24 +138,32 @@ export default function ChatComposer({
         </div>
       ) : null}
 
-      <div className="flex flex-col-reverse md:flex-row gap-2 ">
-        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 
+      <div className="flex flex-col-reverse md:flex-row-reverse gap-2 ">
+        
+          <div className=' flex w-full gap-2  items-center'>
+          <div className="rounded-2xl w-full border border-zinc-200 bg-zinc-50 
       px-3 py-2 shadow-sm transition focus-within:border-emerald-500
        focus-within:ring-2 focus-within:ring-emerald-100
         dark:border-zinc-700 dark:bg-zinc-950
          dark:focus-within:border-emerald-400
           dark:focus-within:ring-emerald-500/20">
-          <textarea
-            ref={textareaRef}
-            value={draft}
-            onChange={(event) => onDraftChange(event.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder="Type a message"
-            rows={1}
-            className="max-h-32 min-h-[2.75rem] w-full resize-none bg-transparent text-sm leading-6 text-zinc-900 outline-none dark:text-zinc-100"
-          />
-        </div>
+            <textarea
+              ref={textareaRef}
+              value={draft}
+              onChange={(event) => onDraftChange(event.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder="Type a message"
+              rows={1}
+              className="max-h-32 min-h-[2.75rem] w-full resize-none bg-transparent text-sm leading-6 text-zinc-900 outline-none dark:text-zinc-100"
+            />
+          </div>
 
+          <button  onClick={onSend} className={'p-2   size-10 md:size-14 rounded-md shadow-sm  bg-emerald-500 dark:bg-zinc-950 text-white  flex   items-center justify-center'}>
+            <SendIcon ></SendIcon>
+          </button>
+
+          
+          </div>
         <div
           ref={actionsRef}
           className="relative flex items-center gap-2"
@@ -173,7 +182,7 @@ export default function ChatComposer({
 
           {/* Actions */}
           <div
-            className={`absolute bottom-0 left-12 flex items-center gap-2 rounded-full bg-white p-1 shadow-xl transition-all duration-300 dark:bg-zinc-900
+            className={`absolute bottom-0 left-12  lg:-top-12 lg:left-2  flex items-center gap-2  rounded-md bg-white lg:bg-transparent z-50 p-1 shadow-xl lg:shadow-inherit  transition-all duration-300 dark:bg-zinc-900  lg:h-5
 
       ${showActions
                 ? "translate-x-0 scale-100 opacity-100"
@@ -190,6 +199,11 @@ export default function ChatComposer({
               <Paperclip className="h-4 w-4" />
             </Button>
 
+
+
+
+          
+
             {/* Emoji */}
             <Button
               variant="ghost"
@@ -201,9 +215,16 @@ export default function ChatComposer({
 
             {showEmojiPicker && (
               <div className="absolute bottom-14 left-12 z-50">
-                <EmojiPicker
+                {/* <EmojiPicker
                   onSelect={(emoji) => {
                     onAddEmoji(emoji);
+                    setShowEmojiPicker(false);
+                  }}
+                /> */}
+
+                <EmojiPicker
+                  onEmojiClick={(emojiData) => {
+                    onAddEmoji(emojiData.emoji);
                     setShowEmojiPicker(false);
                   }}
                 />
@@ -230,6 +251,27 @@ export default function ChatComposer({
               <Search className="h-4 w-4" />
             </Button>
           </div>
+
+
+          {/* attachment input  */}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            hidden
+            accept="image/*,video/*,.pdf,.doc,.docx,.txt"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+
+              if (!file) return;
+
+              await onAttachFile(file);
+
+              // একই file আবার select করলে যেন onChange আবার fire হয়
+              e.target.value = "";
+            }}
+          />
+          {/* attachment input  */}
         </div>
       </div>
     </div>
