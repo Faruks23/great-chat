@@ -1,6 +1,7 @@
 import '@/styles/globals.css';
 import type { Metadata, Viewport } from 'next';
 import { Providers } from '@/providers/Providers';
+import ServiceWorker from '@/components/ServiceWorker';
 
 export const metadata: Metadata = {
   title: 'Great Chat',
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
       </head>
       <body className="safe-x">
+         <ServiceWorker></ServiceWorker>
         <Providers>{children}</Providers>
       </body>
     </html>
