@@ -12,6 +12,7 @@ export default function HomePage() {
   useEffect(() => {
     const token = getAuthToken();
     if (token) router.replace('/chat');
+    
   }, [router]);
 
   return (

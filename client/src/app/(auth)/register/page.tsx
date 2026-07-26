@@ -1,101 +1,177 @@
-'use client';
+"use client";
 
-import { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { register } from '@/services/authService';
-import { saveAuthSession } from '@/lib/auth';
-import { useAuth } from '@/hooks/useAuth';
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+
+import {
+  registerSchema,
+  RegisterFormData,
+} from "@/schemas/register.schema";
+
+import { register } from "@/services/authService";
+import { saveAuthSession } from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
+
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [name, setName] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const { refresh } = useAuth();
 
-  const hasEmail = useMemo(() => email.trim().length > 0, [email]);
-  const hasPhone = useMemo(() => phone.trim().length > 0, [phone]);
+  const {
+    register: formRegister,
+    handleSubmit,
+    setError,
+    formState: { errors, isSubmitting },
+    watch,
+  } = useForm<RegisterFormData>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      phone: "",
+      password: "",
+    },
+  });
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError('');
-    setIsLoading(true);
+  const email = watch("email");
+  const phone = watch("phone");
 
+  const onSubmit = async (data: RegisterFormData) => {
     try {
-      if (!hasEmail && !hasPhone) {
-        setError('Please enter an email or phone number.');
-        return;
-      }
+      const response = await register({
+        name: data.name,
+        password: data.password,
+        ...(email && { email }),
+        ...(phone && { phone }),
+      });
 
-      const response = await register({ name, ...(hasEmail ? { email } : {}), ...(hasPhone ? { phone } : {}), password });
       saveAuthSession(response);
-      try {
-        refresh();
-      } catch (e) {
-        // ignore when provider not available
-      }
-      router.push('/chat');
+
+      refresh?.();
+
+      router.push("/chat");
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Registration failed.');
-    } finally {
-      setIsLoading(false);
+      setError("root", {
+        message:
+          err instanceof Error
+            ? err.message
+            : "Registration failed.",
+      });
     }
   };
 
   return (
-    <Card className="w-full">
+    <Card className="mx-auto w-full max-w-md">
       <CardHeader>
         <CardTitle>Create your account</CardTitle>
-        <CardDescription>Register a new account to start chatting.</CardDescription>
+
+        <CardDescription>
+          Register a new account to start chatting.
+        </CardDescription>
       </CardHeader>
 
-        <form className="space-y-5" onSubmit={handleSubmit}>
+    
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="space-y-5"
+        >
           <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
-            <Input id="name" value={name} onChange={(event) => setName(event.target.value)} required />
+            <Label>Name</Label>
+
+            <Input {...formRegister("name")} />
+
+            {errors.name && (
+              <p className="text-sm text-destructive">
+                {errors.name.message}
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Optional" />
-          </div>
+            <Label>Email</Label>
 
-          <div className="space-y-2">
-            <Label htmlFor="phone">Phone number</Label>
-            <Input id="phone" type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="Optional" />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
             <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
+              type="email"
+              placeholder="Optional"
+              {...formRegister("email")}
             />
+
+            {errors.email && (
+              <p className="text-sm text-destructive">
+                {errors.email.message}
+              </p>
+            )}
           </div>
 
-          {error ? <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p> : null}
+          <div className="space-y-2">
+            <Label>Phone</Label>
 
-          <Button type="submit" className="w-full" size="default">
-            {isLoading ? 'Creating account...' : 'Create account'}
+            <Input
+              type="tel"
+              placeholder="Optional"
+              {...formRegister("phone")}
+            />
+
+            {errors.phone && (
+              <p className="text-sm text-destructive">
+                {errors.phone.message}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label>Password</Label>
+
+            <Input
+              type="password"
+              {...formRegister("password")}
+            />
+
+            {errors.password && (
+              <p className="text-sm text-destructive">
+                {errors.password.message}
+              </p>
+            )}
+          </div>
+
+          {errors.root && (
+            <p className="text-sm text-destructive">
+              {errors.root.message}
+            </p>
+          )}
+
+          <Button
+            className="w-full"
+            disabled={isSubmitting}
+          >
+            {isSubmitting
+              ? "Creating account..."
+              : "Create account"}
           </Button>
         </form>
 
-        <div className="mt-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
-          Already have an account?{' '}
-          <a href="/login" className="font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300">
+        <p className="mt-6 text-center text-sm text-muted-foreground">
+          Already have an account?{" "}
+          <Link
+            href="/login"
+            className="font-medium text-primary hover:underline"
+          >
             Sign in
-          </a>
-        </div>
-      </Card>
+          </Link>
+        </p>
+     
+    </Card>
   );
 }
