@@ -20,10 +20,10 @@ export default function IncomingCallModal({ call, onAccept, onDecline }: Incomin
         <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Incoming call</h3>
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Call from {call.from ?? 'Someone'}</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <Button className="bg-emerald-600" onClick={onAccept}>
+          <Button variant={'secondary'} className="bg-emerald-600 dark:text-white rounded-md shadow " onClick={onAccept}>
             Accept
           </Button>
-          <Button variant="ghost" onClick={onDecline}>
+          <Button variant="ghost" className={"dark:text-white rounded-md shadow"} onClick={onDecline}>
             Decline
           </Button>
         </div>

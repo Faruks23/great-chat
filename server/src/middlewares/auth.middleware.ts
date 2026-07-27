@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
+import { AuthenticatedRequest } from '../common/types/authenticated-request';
 
 export function authMiddleware(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
@@ -11,7 +12,12 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
   const token = authHeader.replace('Bearer ', '');
   try {
     const decoded = jwt.verify(token, env.jwtSecret) as { id: string; email: string };
-    (req as any).user = { id: decoded.id, email: decoded.email };
+    // (req as any).user = { id: decoded.id, email: decoded.email };
+    (req as AuthenticatedRequest).user = {
+      id: decoded.id,
+      email: decoded.email,
+      
+    };
     next();
   } catch (error) {
     return res.status(401).json({ message: 'Invalid token' });

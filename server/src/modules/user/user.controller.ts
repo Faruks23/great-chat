@@ -1,119 +1,139 @@
-import { Request, Response, NextFunction } from 'express';
-import { UserService } from './user.service';
-import { ConversationService } from '../conversation/conversation.service';
-import { getIoServer } from '../../config/socket';
 
-export async function getUsers(req: Request, res: Response, next: NextFunction) {
-  try {
-    const users = await UserService.getAll();
-    res.json(users);
-  } catch (error) {
-    next(error);
+import { AuthenticatedRequest } from "../../common/types/authenticated-request";
+import { UserService } from "./user.service";
+
+import { FriendService } from "./friend.service";
+import { NotFoundError } from "../../common/errors/NotFoundError";
+import { catchAsync } from "../../utils/asyncHandler";
+import { sendResponse } from "../../utils/ApiResponse";
+import { UnauthorizedError } from "../../common/errors/UnauthorizedError";
+import { BadRequestError } from "../../common/errors/BadRequestError";
+/**
+ * ==========================================
+ * GET /users
+ * সব User এর তালিকা নিয়ে আসে।
+ * ==========================================
+ */
+export const getUsers = catchAsync(async (req, res) => {
+  const users = await UserService.getAll();
+  // Client কে JSON আকারে response পাঠায়।
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    data: users,
+    message: "All user Retribe successfully",
+  });
+});
+
+/**
+ * ==========================================
+ * GET /users/:id
+ * নির্দিষ্ট User এর তথ্য নিয়ে আসে।
+ * ==========================================
+ */
+export const getUserById = catchAsync(async (req, res) => {
+  const user = await UserService.getById(req.params.id);
+
+  if (!user) {
+    throw new NotFoundError("User not found");
   }
-}
 
-export async function getUserById(req: Request, res: Response, next: NextFunction) {
-  try {
-    const user = await UserService.getById(req.params.id);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    res.json(user);
-  } catch (error) {
-    next(error);
-  }
-}
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Users fetched successfully",
+    data: user,
+  });
+});
 
-export async function searchUser(req: Request, res: Response, next: NextFunction) {
-  try {
-    const userId = (req as any).user?.id;
-    const query = String(req.query.q ?? '').trim();
+/**
+ * ==========================================
+ * GET /users/search?q=value
+ * Email অথবা Phone দিয়ে User Search করে।
+ * ==========================================
+ */
+export const searchUser = catchAsync<AuthenticatedRequest>(
+  async (req, res) => {
+    const userId = req.user?.id;
+    const query = String(req.query.q ?? "").trim();
 
     if (!userId) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      throw new UnauthorizedError("Unauthorized");
     }
 
     if (!query) {
-      return res.status(400).json({ message: 'Search query is required' });
+      throw new BadRequestError("Search query is required");
     }
 
     const user = await UserService.findByEmailOrPhone(query);
+
     if (!user || user.id === userId) {
-      return res.status(404).json({ message: 'User not found' });
+      throw new NotFoundError("User not found");
     }
 
-    res.json(user);
-  } catch (error) {
-    next(error);
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "User found successfully",
+      data: user,
+    });
   }
-}
+);
 
-export async function getCurrentUser(req: Request, res: Response, next: NextFunction) {
-  try {
-    const userId = (req as any).user?.id;
+/**
+ * ==========================================
+ * GET /users/me
+ * Get current logged in user
+ * ==========================================
+ */
+export const getCurrentUser = catchAsync<>(
+  async (req, res) => {
+    const userId = req.user?.id;
+
     if (!userId) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      throw new UnauthorizedError("Unauthorized");
     }
 
     const user = await UserService.getById(userId);
+
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      throw new NotFoundError("User not found");
     }
 
-    const friends = user.friends?.length ? await UserService.getByIds(user.friends) : [];
-    res.json({ ...user, friends });
-  } catch (error) {
-    next(error);
+    const friends = user.friends?.length
+      ? await UserService.getByIds(user.friends)
+      : [];
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Current user fetched successfully",
+      data: {
+        ...user,
+        friends,
+      },
+    });
   }
-}
+);
 
-export async function addFriend(req: Request, res: Response, next: NextFunction) {
-  try {
-    const userId = (req as any).user?.id;
-    const friendId = req.params.id;
+/**
+ * ==========================================
+ * POST /users/:id/add-friend
+ * Add a new friend
+ * ==========================================
+ */
+export const addFriend = catchAsync(
+  async (req, res) => {
+    const result = await FriendService.addFriend(
+      req.user.id,
+      req.params.id
+    );
 
-    if (!userId) {
-      return res.status(401).json({ message: 'Unauthorized' });
-    }
-
-    if (!friendId) {
-      return res.status(400).json({ message: 'Friend ID is required' });
-    }
-
-    if (userId === friendId) {
-      return res.status(400).json({ message: 'You cannot add yourself as a friend' });
-    }
-
-    const friend = await UserService.getById(friendId);
-    if (!friend) {
-      return res.status(404).json({ message: 'Friend account not found' });
-    }
-
-    const updatedUser = await UserService.addFriend(userId, friendId);
-    if (!updatedUser) {
-      return res.status(500).json({ message: 'Failed to add friend' });
-    }
-
-    const conversation = await ConversationService.create('New Chat', [userId, friendId]);
-    const currentUser = await UserService.getById(userId);
-    const friends = updatedUser.friends?.length ? await UserService.getByIds(updatedUser.friends) : [];
-
-    const io = getIoServer();
-    if (io) {
-      io.to(`user:${friendId}`).emit('notification:receive', {
-        type: 'friend',
-        title: 'New friend added',
-        body: `${currentUser?.name ?? 'Someone'} added you as a friend.`,
-        data: {
-          url: `/chat?userId=${currentUser?.id ?? userId}`,
-          conversationId: conversation._id?.toString?.(),
-        },
-      });
-    }
-
-    res.json({ ...updatedUser, friends, conversationId: conversation._id?.toString?.() });
-  } catch (error) {
-    next(error);
+    sendResponse(res, {
+      success: true,
+      statusCode: 201,
+      message: "Friend added successfully",
+      data: result,
+    });
   }
-}
-
+);

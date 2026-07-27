@@ -19,8 +19,8 @@ export function IncomingCall({
   const callerName = caller.name ?? 'Someone';
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-4 py-6 text-white">
-      <div className="w-full max-w-md rounded-[2rem] border border-white/10 bg-slate-950/80 p-8 shadow-2xl shadow-black/40 backdrop-blur-xl">
+    <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-slate-950 via-slate-900 to-slate-800 px-4 py-6 text-white">
+      <div className="w-full max-w-md rounded-4xl border border-white/10 bg-slate-950/80 p-8 shadow-2xl shadow-black/40 backdrop-blur-xl">
         <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-slate-800 text-3xl font-semibold text-white ring-2 ring-emerald-500/20">
           {caller.avatar ? (
             <img src={caller.avatar} alt={callerName} className="h-full w-full object-cover" />

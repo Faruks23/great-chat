@@ -101,9 +101,11 @@ export default function ChatLayout({
   onToggleTheme,
 }: ChatLayoutProps) {
   const chatState = useAppSelector((state) => state.chat);
+
   const activeConversation = useMemo(
     () => (activeId ? chatState.conversations.find((conversation: Conversation) => conversation.id === activeId) : undefined),
     [activeId, chatState.conversations]
+
   );
   const messages = activeConversation?.id ? chatState.messagesByConv[activeConversation.id] ?? [] : [];
   const filteredConversations = useMemo(
@@ -134,7 +136,7 @@ export default function ChatLayout({
     isTyping,
   });
   return (
-    <div className="relative flex h-[100dvh] min-h-[100dvh] w-full flex-col overflow-hidden border border-zinc-200 bg-white shadow-card dark:border-zinc-800 dark:bg-zinc-950 md:flex-row md:h-[calc(100vh-2rem)] md:min-h-[calc(100vh-2rem)]  md:max-h-[calc(100vh-2rem)]">
+    <div className="relative flex h-dvh min-h-dvh w-full flex-col overflow-hidden border border-zinc-200 bg-white shadow-card dark:border-zinc-800 dark:bg-zinc-950 md:flex-row md:h-[calc(100vh-2rem)] md:min-h-[calc(100vh-2rem)]  md:max-h-[calc(100vh-2rem)]">
       {/** Incoming call modal appears above everything else. */}
       {incomingCall && (
         <IncomingCallModal
