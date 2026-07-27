@@ -86,7 +86,7 @@ export const searchUser = catchAsync<AuthenticatedRequest>(
  * Get current logged in user
  * ==========================================
  */
-export const getCurrentUser = catchAsync<>(
+export const getCurrentUser = catchAsync(
   async (req, res) => {
     const userId = req.user?.id;
 
