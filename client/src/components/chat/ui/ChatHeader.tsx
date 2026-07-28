@@ -97,7 +97,7 @@ export default function ChatHeader({ active, onToggleSidebar, onCloseConversatio
   };
 
   return (
-    <div className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900 sm:px-5 sm:py-3">
+    <div className="sticky top-0 z-20 flex flex-no-wrap md flex-wrap items-center justify-between gap-3 border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900 sm:px-5 sm:py-3">
       <div className="flex items-center gap-3">
         <Button variant="ghost" className="sm:hidden" onClick={onToggleSidebar}>
           <Menu className="h-4 w-4" />

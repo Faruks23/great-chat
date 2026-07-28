@@ -11,7 +11,7 @@ import { Mail, MessageCircle, Phone, VideoIcon, MoreVertical, UserPlus, UserChec
 import { User } from '@/types';
 
 export default function ProfilePage() {
-  const { user } = useAuth();
+  const { user, isReady,refresh } = useAuth();
   const [addedFriends, setAddedFriends] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -21,9 +21,9 @@ export default function ProfilePage() {
     queryKey: ['profile', user?.id],
     queryFn: async () => {
       try {
-        const data = await getCurrentUser();
+        const data= await getCurrentUser();
         setError(null);
-        return data;
+        return data ;
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to load profile';
         setError(message);
@@ -34,6 +34,8 @@ export default function ProfilePage() {
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
+
+  console.log(profileQuery)
 
   // Users query with error handling
   const usersQuery = useQuery({
@@ -69,8 +71,10 @@ export default function ProfilePage() {
 
   // Redirect if not authenticated
   useEffect(() => {
+    
     if (user === null) {
-      router.push('/login');
+      refresh();
+      // router.push('/login');
     }
   }, [user, router]);
 
@@ -92,11 +96,11 @@ export default function ProfilePage() {
   );
 
   return (
-    <div className="bg-gradient-to-b from-green-50 to-white dark:from-slate-900 dark:to-slate-800 min-h-screen">
+    <div className="bg-linear-to-b from-green-50 to-white dark:from-slate-900 dark:to-slate-800 min-h-screen">
       {/* Error Alert */}
       {error && (
         <div className="sticky top-0 z-50 bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800 px-4 py-3 flex items-center gap-3">
-          <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0" />
+          <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0" />
           <p className="text-sm text-red-800 dark:text-red-300 flex-1">{error}</p>
           <button
             onClick={() => setError(null)}
@@ -109,14 +113,14 @@ export default function ProfilePage() {
 
       <div className="max-w-4xl mx-auto">
         {/* Profile Header Section */}
-        <div className="relative bg-gradient-to-b from-emerald-500 to-emerald-600 pt-8 pb-20">
+        <div className="relative bg-linear-to-b from-emerald-500 to-emerald-600 pt-8 pb-20">
           {/* Profile Card */}
           <div className="px-4">
             <div className="flex flex-col items-center text-center text-white">
               {isLoadingProfile ? (
                 <div className="h-32 w-32 rounded-full bg-white/20 animate-pulse" />
               ) : (
-                <div className="h-32 w-32 rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-5xl font-bold shadow-lg ring-4 ring-white dark:ring-slate-800">
+                <div className="h-32 w-32 rounded-full bg-linear-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-5xl font-bold shadow-lg ring-4 ring-white dark:ring-slate-800">
                   {profile?.name?.charAt(0).toUpperCase() || '?'}
                 </div>
               )}

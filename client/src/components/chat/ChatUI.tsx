@@ -19,6 +19,7 @@ import SuspenseBoundary from '@/components/ui/SuspenseBoundary';
 import { addReactionToMessage, appendMessage } from '@/store/chatSlice';
 import type { ChatMessage, Conversation, MessageAttachment } from '@/store/chatSlice';
 import type { User } from '@/types';
+import { SpinnerCustom } from '../common/Spinner';
 
 export default function ChatUI() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -299,7 +300,9 @@ export default function ChatUI() {
   };
 
   if (messagesQuery && messagesQuery.isLoading) {
-    return <div className="p-6 text-center text-sm text-zinc-500">Loading conversations…</div>;
+    return <div className="p-6 text-center text-sm text-zinc-500 h-dvh absolute top-0 left-0 w-dvw z-50 flex  justify-center items-center ">
+      <SpinnerCustom></SpinnerCustom>
+    </div>;
   }
 
   return (

@@ -85,7 +85,7 @@ export default function ChatComposer({
   }, []);
 
   return (
-    <div className="sticky bottom-0 left-0 right-0 z-20 border-t border-zinc-200 bg-white/95 px-3 py-3 backdrop-blur-sm safe-bottom dark:border-zinc-800 dark:bg-zinc-950/95 sm:px-4 md:static md:px-4 md:py-4">
+    <div className="sticky bottom-0 left-0 right-0 z-20 px-3 py-3 backdrop-blur-sm safe-botto sm:px-4 md:static md:px-4 md:py-4">
       {replyTo ? (
         <div className="mb-2 flex items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-500/10 dark:text-emerald-300">
           <div className="min-w-0">
@@ -183,10 +183,7 @@ export default function ChatComposer({
           <div
             className="rounded-2xl w-full border border-zinc-200 bg-zinc-50 
       px-3 py-2 shadow-sm transition focus-within:border-emerald-500
-       focus-within:ring-2 focus-within:ring-emerald-100
-        dark:border-zinc-700 dark:bg-zinc-950
-         dark:focus-within:border-emerald-400
-          dark:focus-within:ring-emerald-500/20"
+      dark:bg-zinc-950"
           >
             <textarea
               ref={textareaRef}
@@ -195,7 +192,7 @@ export default function ChatComposer({
               onKeyDown={onKeyDown}
               placeholder="Type a message"
               rows={1}
-              className="max-h-32 min-h-[2.75rem] w-full resize-none bg-transparent text-sm leading-6 text-zinc-900 outline-none dark:text-zinc-100"
+              className="max-h-32 min-h-10 w-full resize-none bg-transparent text-sm leading-6 text-zinc-900 outline-none dark:text-zinc-100 border-none  focus-within:ring-0 focus-visible:ring-0 *:focus-within:ring-0 *:focus-visible:ring-0"
             />
           </div>
 
@@ -212,7 +209,7 @@ export default function ChatComposer({
           {/* Plus Button */}
           <Button
             variant="ghost"
-            className="h-10 w-10 rounded-full border border-zinc-200 bg-white shadow-sm transition hover:bg-zinc-100"
+            className="h-10 w-10 rounded-full border border-zinc-200  shadow-sm transition hover:bg-zinc-100"
             onClick={() => setShowActions((prev) => !prev)}
           >
             <Plus

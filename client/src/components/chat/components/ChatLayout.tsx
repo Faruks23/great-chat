@@ -136,7 +136,7 @@ export default function ChatLayout({
     isTyping,
   });
   return (
-    <div className="relative flex h-dvh min-h-dvh w-full flex-col overflow-hidden border border-zinc-200 bg-white shadow-card dark:border-zinc-800 dark:bg-zinc-950 md:flex-row md:h-[calc(100vh-2rem)] md:min-h-[calc(100vh-2rem)]  md:max-h-[calc(100vh-2rem)]">
+    <div className="relative flex  h-[calc(100vh-68px)]! w-full flex-col overflow-hidden   bg-white shadow-card dark:border-zinc-800 dark:bg-zinc-950 md:flex-row md:h-[calc(100vh-2rem)] md:min-h-[calc(100vh-2rem)]  md:max-h-[calc(100vh-2rem)] ">
       {/** Incoming call modal appears above everything else. */}
       {incomingCall && (
         <IncomingCallModal
@@ -166,14 +166,14 @@ export default function ChatLayout({
         onToggleTheme={onToggleTheme}
       />
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-zinc-50 dark:bg-zinc-950">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-zinc-50 dark:bg-zinc-950 ">
         {activeConversation ? (
           <>
             {/** Header shows active chat details and close button. */}
             <ChatHeader active={activeConversation} onToggleSidebar={onToggleSidebar} onCloseConversation={onCloseConversation} />
 
             {/** Main message list region with scrolling and replies. */}
-            <div className="relative flex-1 min-h-0 overflow-hidden">
+            <div className="relative flex-1 min-h-0 overflow-hidden  ">
               <ChatMessageList
                 active={activeConversation}
                 groupedMessages={groupedMessages}

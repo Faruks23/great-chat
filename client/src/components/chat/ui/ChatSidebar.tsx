@@ -111,7 +111,7 @@ export function ChatSidebar({
       ) : null}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex h-dvh w-full max-w-[min(100vw,380px)] flex-col overflow-hidden border-r border-zinc-200 bg-white shadow-xl transition-transform duration-300 dark:border-zinc-800 dark:bg-zinc-950 md:static md:h-full md:w-90
+        className={`fixed inset-y-0 left-0 z-40 flex h-dvh w-full max-w-[min(100vw,380px)] flex-col overflow-hidden border-r border-zinc-200 bg-white shadow-xl transition-transform duration-300 dark:border-zinc-800 dark:bg-zinc-950 md:static md:h-full md:w-90 pb-18 md:pb-0
 xl:w-97.5 md:shrink-0 md:shadow-none ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
       >
         <SidebarHeader

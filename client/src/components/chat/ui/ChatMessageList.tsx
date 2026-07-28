@@ -51,7 +51,7 @@ export default function ChatMessageList({
         ref={scrollRef}
         onScroll={handleScroll}
         style={{ WebkitOverflowScrolling: 'touch' }}
-        className="flex h-full min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-4 py-4 pb-28 touch-pan-y sm:px-6 sm:py-6"
+        className="flex h-dvh min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-4 py-4 pb-28 touch-pan-y sm:px-6 sm:py-6"
       >
         {messages.length === 0 && !messagesQuery.isLoading ? (
           <div className="mx-auto mt-12 flex max-w-md flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-zinc-200 bg-white p-8 text-center text-zinc-600 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">

@@ -2,10 +2,12 @@ import api from '@/lib/axios';
 import type { User } from '@/types';
 
 export interface UserProfile extends User {
-  avatar?: string;
-  phone?: string;
-  friends?: User[];
-  conversationId?: string;
+  data:{
+    avatar?: string;
+    phone?: string;
+    friends?: User[];
+    conversationId?: string;
+  }
 }
 
 /**
@@ -13,7 +15,7 @@ export interface UserProfile extends User {
  */
 export async function getCurrentUser(): Promise<UserProfile> {
   const response = await api.get<UserProfile>('/users/current');
-  return response.data;
+  return response.data.data as any;
 }
 
 /**
