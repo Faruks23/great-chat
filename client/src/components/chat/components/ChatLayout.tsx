@@ -210,7 +210,7 @@ export default function ChatLayout({
             />
           </>
         ) : (
-          <EmptyState></EmptyState>
+          <EmptyState onQueryChange={onQueryChange} onToggleSidebar={onToggleSidebar} />
         )}
       </div>
     </div>

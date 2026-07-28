@@ -24,7 +24,7 @@ export default function ConversationItem({
       className={cn(
         'group flex w-full items-center gap-3 rounded-2xl p-3 text-left transition-all duration-200',
         active
-          ? 'bg-emerald-50 shadow-sm dark:bg-emerald-500/10'
+          ? 'bg-emerald-50 shadow-sm dark:bg-emerald-500/10 border'
           : 'hover:bg-zinc-100 dark:hover:bg-zinc-900'
       )}
     >
@@ -36,9 +36,9 @@ export default function ConversationItem({
           size={54}
         />
 
-        {conversation.online && (
+        {/* {conversation.online && (
           <span className="absolute bottom-1 right-1 h-3 w-3 rounded-full border-2 border-white bg-emerald-500 dark:border-zinc-950" />
-        )}
+        )} */}
       </div>
 
       <div className="min-w-0 flex-1">

@@ -87,7 +87,8 @@ export function OneToOneCall({
   const [isScreenShareModalOpen, setIsScreenShareModalOpen] = useState(false);
   const [screenShareStream, setScreenShareStream] = useState<MediaStream | null>(null);
   const [remoteScreenStream, setRemoteScreenStream] = useState<MediaStream | null>(null);
-  const screenShareError = null; const [messages, setMessages] = useState<ChatMessage[]>([
+  const screenShareError = null;
+  const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
       sender: 'Sarah Johnson',
@@ -99,10 +100,24 @@ export function OneToOneCall({
   ]);
 
   const statusTone = useMemo(() => {
-    if (permissionError) return 'text-red-300';
-    if (connectionState === 'connected') return 'text-emerald-300';
-    if (connectionState === 'joining') return 'text-amber-300';
-    return 'text-slate-200';
+    if (permissionError) return "text-red-300";
+
+    switch (connectionState) {
+      case "connected":
+        return "text-emerald-300";
+
+      case "joining":
+        return "text-amber-300";
+
+      case "disconnected":
+        return "text-slate-300";
+
+      case "failed":
+        return "text-red-300";
+
+      default:
+        return "text-slate-200";
+    }
   }, [connectionState, permissionError]);
 
   const handleSendMessage = (message: string) => {
@@ -186,7 +201,7 @@ export function OneToOneCall({
   }, [peerConnection, remoteScreenShareRef, remoteScreenStream]);
 
   return (
-    <div className="relative flex h-screen w-full flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800 group">
+    <div className="relative flex h-screen w-full flex-col items-center justify-center overflow-hidden bg-linear-to-br from-slate-900 to-slate-800 group">
       {/* Background Video Grid */}
       <div className="absolute inset-0 opacity-5">
         <div className="grid grid-cols-4 gap-4 w-full h-full p-4">
@@ -225,7 +240,7 @@ export function OneToOneCall({
             </div>
           )}
           {/* Gradient Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-linear-to-t from-black via-transparent to-transparent" />
 
           {/* Remote Screen Share Display */}
           {remoteScreenStream && remoteScreenShareRef && (
@@ -402,6 +417,19 @@ export function OneToOneCall({
         onStartSharing={handleStartScreenShare}
         onStopSharing={handleStopScreenShare}
       />
+
+      {isChatOpen && (
+          <ChatPanel
+            currentUserAvatar=''
+            currentUserName={'You'}
+            isOpen={isChatOpen}
+            messages={messages}
+            onSendMessage={handleSendMessage}
+          onClose={() => setIsChatOpen(false)}>
+          
+            </ChatPanel>)}
+
+
       {screenShareError && (
         <div className="fixed bottom-4 left-4 bg-red-500 text-white px-4 py-2 rounded-lg z-50">
           Screen sharing error: {screenShareError}

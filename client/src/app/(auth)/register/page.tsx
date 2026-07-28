@@ -57,7 +57,7 @@ export default function RegisterPage() {
         ...(phone && { phone }),
       });
 
-      saveAuthSession(response);
+      saveAuthSession(response.data as any);
 
       refresh?.();
 
@@ -152,7 +152,8 @@ export default function RegisterPage() {
             </p>
           )}
 
-          <Button
+        <Button
+          type="submit"
             className="w-full"
             disabled={isSubmitting}
           >

@@ -207,7 +207,8 @@ export function GroupCall({
   };
 
   useEffect(() => {
-    const socket = getSocket(); if (!socket) return; const handleRemoteScreenShare = (data: { userId: string; isSharing: boolean }) => {
+    const socket = getSocket(); if (!socket) return;
+    const handleRemoteScreenShare = (data: { userId: string; isSharing: boolean }) => {
       if (!data.isSharing) {
         setRemoteScreenStream(null);
         // clear seen remote screen track ids when sharing stops

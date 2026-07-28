@@ -50,9 +50,11 @@ export default function LoginPage() {
           : { email: data.identifier.trim() }),
         password: data.password,
       });
+    
+         console.log("Login response:", response); // Log the response for debugging
 
-      saveAuthSession(response);
-
+      saveAuthSession(response.data as any);
+ 
       refresh?.();
 
       router.push("/chat");
