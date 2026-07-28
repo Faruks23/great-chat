@@ -53,7 +53,7 @@ export default function LoginPage() {
     
          console.log("Login response:", response); // Log the response for debugging
 
-      saveAuthSession(response.data as any);
+      saveAuthSession(response.data);
  
       refresh?.();
 

@@ -8,6 +8,7 @@ export interface AuthCredentials {
 }
 
 export interface AuthResponse {
+  data: AuthResponse;
   user: {
     id: string;
     email: string;
